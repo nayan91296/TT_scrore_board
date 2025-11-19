@@ -4,6 +4,7 @@ import './App.css';
 import Tournaments from './components/Tournaments';
 import PlayersAndTeams from './components/PlayersAndTeams';
 import TournamentDetail from './components/TournamentDetail';
+import PlayerRankings from './components/PlayerRankings';
 
 const NavLinks = () => {
   const location = useLocation();
@@ -21,6 +22,12 @@ const NavLinks = () => {
         className={location.pathname === '/players-teams' || location.pathname === '/players' || location.pathname === '/teams' ? 'active' : ''}
       >
         Players & Teams
+      </Link>
+      <Link 
+        to="/rankings" 
+        className={location.pathname === '/rankings' ? 'active' : ''}
+      >
+        Rankings
       </Link>
     </nav>
   );
@@ -41,6 +48,7 @@ function App() {
             <Route path="/" element={<Tournaments />} />
             <Route path="/tournaments/:id" element={<TournamentDetail />} />
             <Route path="/players-teams" element={<PlayersAndTeams />} />
+            <Route path="/rankings" element={<PlayerRankings />} />
             {/* Keep old routes for backward compatibility */}
             <Route path="/players" element={<PlayersAndTeams />} />
             <Route path="/teams" element={<PlayersAndTeams />} />
