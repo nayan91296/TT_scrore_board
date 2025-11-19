@@ -12,7 +12,8 @@ import {
   updateMatch,
   updateTournament,
   recalculateTeamStats,
-  deleteMatch
+  deleteMatch,
+  performToss
 } from '../services/api';
 import PinVerification from './PinVerification';
 
@@ -44,6 +45,11 @@ const TournamentDetail = () => {
   // Winner celebration state
   const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
   const [winnerTeam, setWinnerTeam] = useState(null);
+  
+  // Toss state
+  const [showTossModal, setShowTossModal] = useState(null);
+  const [tossAnimating, setTossAnimating] = useState(false);
+  const [tossResult, setTossResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -351,6 +357,40 @@ const TournamentDetail = () => {
     setShowPinModal(false);
     setPendingAction(null);
     setPendingActionType('');
+  };
+
+  const handleToss = async (match) => {
+    if (!match.team1 || !match.team2) {
+      alert('Both teams must be assigned to perform toss');
+      return;
+    }
+    
+    setShowTossModal(match);
+    setTossAnimating(true);
+    setTossResult(null);
+    
+    // Animate for 2 seconds, then perform toss
+    setTimeout(async () => {
+      try {
+        const response = await performToss(match._id);
+        const tossWinner = response.data.tossWinner;
+        
+        setTossResult({
+          winner: tossWinner,
+          team1: match.team1,
+          team2: match.team2
+        });
+        setTossAnimating(false);
+        
+        // Reload data to get updated match
+        await loadData();
+      } catch (error) {
+        console.error('Error performing toss:', error);
+        alert('Failed to perform toss: ' + (error.response?.data?.error || error.message));
+        setTossAnimating(false);
+        setShowTossModal(null);
+      }
+    }, 2000);
   };
 
   const handleAddScore = async (matchId) => {
@@ -862,10 +902,47 @@ const TournamentDetail = () => {
             </div>
           )}
 
+          {/* Toss Information */}
+          {match.tossWinner && (
+            <div style={{ 
+              marginTop: '10px', 
+              padding: '10px', 
+              background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+              borderRadius: '5px',
+              border: '2px solid #ffc107',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{ fontSize: '20px' }}>🪙</span>
+              <div style={{ flex: 1 }}>
+                <strong style={{ fontSize: '14px', color: '#333' }}>Toss Winner:</strong>
+                <div style={{ fontSize: '15px', color: '#555', marginTop: '2px', fontWeight: 'bold' }}>
+                  {match.tossWinner?.name || 'Unknown'}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
             {match.status !== 'completed' && hasTeam2 && (
               <>
+                {!match.tossWinner && (
+                  <button 
+                    className="btn btn-warning" 
+                    onClick={() => handleToss(match)}
+                    style={{ 
+                      background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+                      color: '#333',
+                      fontWeight: 'bold',
+                      border: '2px solid #ffc107'
+                    }}
+                  >
+                    🪙 Toss
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={() => openScoreModal(match)}>
                   Add Score
                 </button>
@@ -1766,6 +1843,207 @@ const TournamentDetail = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toss Modal with Animation */}
+      {showTossModal && (
+        <div className="modal" style={{ zIndex: 2000 }}>
+          <style>{`
+            @keyframes coinFlip {
+              0% { transform: rotateY(0deg) scale(1); }
+              25% { transform: rotateY(90deg) scale(1.1); }
+              50% { transform: rotateY(180deg) scale(1); }
+              75% { transform: rotateY(270deg) scale(1.1); }
+              100% { transform: rotateY(360deg) scale(1); }
+            }
+            @keyframes bounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-20px); }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; transform: scale(0.8); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            .coin-flip {
+              animation: coinFlip 0.3s infinite;
+            }
+            .result-bounce {
+              animation: bounce 0.6s ease-in-out;
+            }
+            .result-fade {
+              animation: fadeIn 0.5s ease-out;
+            }
+          `}</style>
+          <div className="modal-content" style={{ 
+            maxWidth: '500px', 
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white'
+          }}>
+            <div className="modal-header" style={{ borderBottom: '2px solid rgba(255,255,255,0.3)' }}>
+              <h2 style={{ color: 'white', margin: 0 }}>🪙 Match Toss</h2>
+              {!tossAnimating && !tossResult && (
+                <span 
+                  className="close" 
+                  onClick={() => {
+                    setShowTossModal(null);
+                    setTossResult(null);
+                  }}
+                  style={{ color: 'white' }}
+                >
+                  &times;
+                </span>
+              )}
+            </div>
+            
+            <div style={{ padding: '30px 20px' }}>
+              {tossAnimating ? (
+                <div>
+                  <div 
+                    className="coin-flip"
+                    style={{
+                      fontSize: '100px',
+                      margin: '20px 0',
+                      display: 'inline-block'
+                    }}
+                  >
+                    🪙
+                  </div>
+                  <div style={{ fontSize: '18px', marginTop: '20px', fontWeight: 'bold' }}>
+                    Flipping coin...
+                  </div>
+                  <div style={{ fontSize: '16px', marginTop: '15px', opacity: 0.95, fontWeight: '600' }}>
+                    {showTossModal.team1?.name} vs {showTossModal.team2?.name}
+                  </div>
+                  {/* Show player names */}
+                  <div style={{ 
+                    marginTop: '20px', 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    gap: '20px',
+                    flexWrap: 'wrap',
+                    fontSize: '13px',
+                    opacity: 0.85
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                        {showTossModal.team1?.name}:
+                      </div>
+                      <div style={{ fontStyle: 'italic' }}>
+                        {(() => {
+                          const team1Players = getPlayerNames(showTossModal.team1);
+                          return team1Players.length > 0 ? team1Players.join(', ') : 'No players';
+                        })()}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                        {showTossModal.team2?.name}:
+                      </div>
+                      <div style={{ fontStyle: 'italic' }}>
+                        {(() => {
+                          const team2Players = getPlayerNames(showTossModal.team2);
+                          return team2Players.length > 0 ? team2Players.join(', ') : 'No players';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : tossResult ? (
+                <div className="result-fade">
+                  <div 
+                    className="result-bounce"
+                    style={{
+                      fontSize: '80px',
+                      margin: '20px 0'
+                    }}
+                  >
+                    🪙
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '15px' }}>
+                    {tossResult.winner?.name || 'Unknown'} won the toss!
+                  </div>
+                  
+                  {/* Show teams with player names */}
+                  <div style={{ 
+                    marginTop: '20px',
+                    display: 'flex',
+                    justifyContent: 'space-around',
+                    gap: '15px',
+                    flexWrap: 'wrap',
+                    marginBottom: '15px'
+                  }}>
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      flex: 1,
+                      minWidth: '150px'
+                    }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>
+                        {tossResult.team1?.name}
+                      </div>
+                      <div style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.9 }}>
+                        {(() => {
+                          const team1Players = getPlayerNames(tossResult.team1);
+                          return team1Players.length > 0 ? team1Players.join(', ') : 'No players';
+                        })()}
+                      </div>
+                    </div>
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      flex: 1,
+                      minWidth: '150px'
+                    }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>
+                        {tossResult.team2?.name}
+                      </div>
+                      <div style={{ fontSize: '13px', fontStyle: 'italic', opacity: 0.9 }}>
+                        {(() => {
+                          const team2Players = getPlayerNames(tossResult.team2);
+                          return team2Players.length > 0 ? team2Players.join(', ') : 'No players';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ 
+                    fontSize: '18px', 
+                    marginTop: '20px',
+                    padding: '15px',
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    fontWeight: '600'
+                  }}>
+                    <div style={{ fontSize: '20px' }}>
+                      🏆 Toss Winner: {tossResult.winner?.name || 'Unknown'}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setShowTossModal(null);
+                      setTossResult(null);
+                    }}
+                    style={{
+                      marginTop: '25px',
+                      padding: '12px 30px',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      background: 'white',
+                      color: '#667eea',
+                      border: 'none'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

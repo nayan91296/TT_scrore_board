@@ -155,21 +155,86 @@ router.post('/:id/generate-group-matches', async (req, res) => {
     }
 
     const teams = tournament.teams;
-    const matches = [];
+    const matchData = [];
     
     // Generate round-robin matches (each team plays every other team once)
+    // First, create match data without saving
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
-        const match = new Match({
+        matchData.push({
           tournament: tournament._id,
           team1: teams[i]._id,
           team2: teams[j]._id,
           matchType: 'group',
           status: 'scheduled'
         });
-        await match.save();
-        matches.push(match);
       }
+    }
+
+    // Shuffle matches using Fisher-Yates algorithm to avoid consecutive matches for same team
+    const shuffleArray = (array) => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    // Function to count consecutive matches (same team playing back-to-back)
+    const countConsecutiveMatches = (matchArray) => {
+      let count = 0;
+      for (let i = 1; i < matchArray.length; i++) {
+        const prevMatch = matchArray[i - 1];
+        const currentMatch = matchArray[i];
+        // Check if same team appears in consecutive matches
+        if (
+          prevMatch.team1.toString() === currentMatch.team1.toString() ||
+          prevMatch.team1.toString() === currentMatch.team2.toString() ||
+          prevMatch.team2.toString() === currentMatch.team1.toString() ||
+          prevMatch.team2.toString() === currentMatch.team2.toString()
+        ) {
+          count++;
+        }
+      }
+      return count;
+    };
+    
+    // Shuffle matches and optimize to minimize consecutive matches
+    const shuffledMatchData = shuffleArray(matchData);
+    
+    // Additional optimization to minimize consecutive matches
+    // Try multiple shuffles and pick the one with the fewest consecutive matches
+    let bestMatchData = shuffledMatchData;
+    let minConsecutiveMatches = countConsecutiveMatches(shuffledMatchData);
+    const maxAttempts = 20;
+    
+    // Try to find the best shuffle (minimum consecutive matches)
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const candidate = shuffleArray(matchData);
+      const consecutiveCount = countConsecutiveMatches(candidate);
+      
+      if (consecutiveCount < minConsecutiveMatches) {
+        bestMatchData = candidate;
+        minConsecutiveMatches = consecutiveCount;
+        
+        // If we found a perfect shuffle (no consecutive matches), use it immediately
+        if (consecutiveCount === 0) {
+          break;
+        }
+      }
+    }
+    
+    const finalMatchData = bestMatchData;
+    
+    console.log(`Match shuffling complete. Consecutive matches minimized to: ${minConsecutiveMatches} out of ${finalMatchData.length} total matches`);
+
+    // Now save matches in shuffled order
+    const matches = [];
+    for (const matchDataItem of finalMatchData) {
+      const match = new Match(matchDataItem);
+      await match.save();
+      matches.push(match);
     }
 
     // Populate matches with team data for response

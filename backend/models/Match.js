@@ -44,6 +44,15 @@ const matchSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Team'
   },
+  tossWinner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team'
+  },
+  firstService: {
+    type: String,
+    enum: ['team1', 'team2'],
+    default: null
+  },
   matchDate: {
     type: Date,
     default: Date.now

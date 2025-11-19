@@ -48,6 +48,7 @@ export const createMatch = (data) => api.post('/matches', data);
 export const updateMatch = (id, data) => api.put(`/matches/${id}`, data);
 export const completeMatch = (id, winnerId) => api.put(`/matches/${id}`, { status: 'completed', winner: winnerId });
 export const addScore = (id, data) => api.post(`/matches/${id}/score`, data);
+export const performToss = (id) => api.post(`/matches/${id}/toss`);
 export const deleteMatch = (id) => api.delete(`/matches/${id}`);
 
 export default api;

@@ -12,6 +12,7 @@ router.get('/', async (req, res) => {
       .populate('team1')
       .populate('team2')
       .populate('winner')
+      .populate('tossWinner')
       .sort({ matchDate: -1 });
     res.json(matches);
   } catch (error) {
@@ -32,6 +33,7 @@ router.get('/tournament/:tournamentId', async (req, res) => {
         populate: { path: 'players' }
       })
       .populate('winner')
+      .populate('tossWinner')
       .sort({ matchType: 1, matchDate: -1 });
     res.json(matches);
   } catch (error) {
@@ -52,7 +54,8 @@ router.get('/:id', async (req, res) => {
         path: 'team2',
         populate: { path: 'players' }
       })
-      .populate('winner');
+      .populate('winner')
+      .populate('tossWinner');
     if (!match) {
       return res.status(404).json({ error: 'Match not found' });
     }
@@ -136,7 +139,7 @@ router.put('/:id', async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate('team1').populate('team2').populate('winner');
+    ).populate('team1').populate('team2').populate('winner').populate('tossWinner');
     
     // If match was completed, handle tournament status update for finals
     if (req.body.status === 'completed' && req.body.winner && match.matchType === 'final') {
@@ -296,12 +299,50 @@ router.post('/:id/score', async (req, res) => {
     const populatedMatch = await Match.findById(match._id)
       .populate('team1')
       .populate('team2')
-      .populate('winner');
+      .populate('winner')
+      .populate('tossWinner');
 
     // Ensure scores are included in response
     if (!populatedMatch.scores) {
       populatedMatch.scores = [];
     }
+
+    res.json(populatedMatch);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Perform toss for match
+router.post('/:id/toss', async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id)
+      .populate('team1')
+      .populate('team2');
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    if (!match.team1 || !match.team2) {
+      return res.status(400).json({ error: 'Both teams must be assigned to perform toss' });
+    }
+
+    // Randomly determine toss winner (50/50 chance)
+    const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+    const tossWinnerId = tossResult === 'team1' ? match.team1._id : match.team2._id;
+    
+    // Set toss winner
+    match.tossWinner = tossWinnerId;
+    
+    await match.save();
+
+    const populatedMatch = await Match.findById(match._id)
+      .populate('tournament')
+      .populate('team1')
+      .populate('team2')
+      .populate('tossWinner')
+      .populate('winner');
 
     res.json(populatedMatch);
   } catch (error) {

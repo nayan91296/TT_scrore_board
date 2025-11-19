@@ -12,7 +12,7 @@ const PlayersAndTeams = () => {
   const [players, setPlayers] = useState([]);
   const [allPlayers, setAllPlayers] = useState([]);
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
-  const [playerSortBy, setPlayerSortBy] = useState('winPercentage');
+  const [playerSortBy, setPlayerSortBy] = useState('performance');
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [playerFormData, setPlayerFormData] = useState({
@@ -142,6 +142,38 @@ const PlayersAndTeams = () => {
           return (b.tournamentsWon || 0) - (a.tournamentsWon || 0);
         case 'rating':
           return (b.rating || 0) - (a.rating || 0);
+        case 'performance':
+          // Calculate performance score based on multiple factors
+          const calculatePerformanceScore = (player) => {
+            const matchesWon = player.matchesWon || 0;
+            const matchesLost = player.matchesLost || 0;
+            const totalMatches = matchesWon + matchesLost;
+            const winPercentage = player.winPercentage !== undefined && player.winPercentage !== null 
+              ? player.winPercentage 
+              : (totalMatches > 0 ? (matchesWon / totalMatches) * 100 : 0);
+            const tournamentsWon = player.tournamentsWon || 0;
+            const semiFinals = player.semiFinalMatches || 0;
+            const finals = player.finalMatches || 0;
+            
+            // Performance score calculation:
+            // - Win percentage (0-100) weighted by 50%
+            // - Total matches (normalized, max 50 points) weighted by 20%
+            // - Tournaments won (10 points each) weighted by 20%
+            // - Finals reached (5 points each) weighted by 5%
+            // - Semi-finals reached (2 points each) weighted by 5%
+            
+            const winPctScore = winPercentage * 0.5;
+            const matchesScore = Math.min(totalMatches * 0.5, 50) * 0.2; // Max 50 matches = 50 points
+            const tournamentsScore = tournamentsWon * 10 * 0.2;
+            const finalsScore = finals * 5 * 0.05;
+            const semiFinalsScore = semiFinals * 2 * 0.05;
+            
+            return winPctScore + matchesScore + tournamentsScore + finalsScore + semiFinalsScore;
+          };
+          
+          const aScore = calculatePerformanceScore(a);
+          const bScore = calculatePerformanceScore(b);
+          return bScore - aScore; // Higher score = better performance
         case 'winPercentage':
         default:
           const aMatchesWon = a.matchesWon || 0;
@@ -794,6 +826,7 @@ const PlayersAndTeams = () => {
                       fontSize: windowWidth < 480 ? '12px' : '14px'
                     }}
                   >
+                    <option value="performance">⭐ Greatest Performance</option>
                     <option value="winPercentage">Win %</option>
                     <option value="name">Name</option>
                     <option value="totalMatches">Matches</option>
@@ -849,7 +882,22 @@ const PlayersAndTeams = () => {
                         : (totalMatches > 0 ? parseFloat(((matchesWon / totalMatches) * 100).toFixed(1)) : 0);
                       const tournamentsWon = player.tournamentsWon !== undefined && player.tournamentsWon !== null ? player.tournamentsWon : 0;
                       const rank = index + 1;
-                      const isTopThree = rank <= 3 && playerSortBy === 'winPercentage' && totalMatches > 0;
+                      
+                      // Determine if player is in top 3 based on current sort
+                      let isTopThree = false;
+                      if (rank <= 3) {
+                        if (playerSortBy === 'performance') {
+                          // Always highlight top 3 for performance (calculated score)
+                          isTopThree = true;
+                        } else if (playerSortBy === 'winPercentage') {
+                          // Highlight top 3 for win % if they have matches
+                          isTopThree = totalMatches > 0;
+                        } else if (playerSortBy === 'tournamentsWon') {
+                          // Highlight top 3 for trophies if they have tournaments won
+                          isTopThree = tournamentsWon > 0;
+                        }
+                      }
+                      
                       const joinedDate = player.createdAt 
                         ? new Date(player.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
                         : '-';
