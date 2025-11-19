@@ -82,6 +82,203 @@ router.get('/tournament/:tournamentId', async (req, res) => {
   }
 });
 
+// Get team's past record (when same players played together)
+// IMPORTANT: This route must be defined BEFORE /:id route
+router.get('/:id/past-record', async (req, res) => {
+  try {
+    console.log('Past record route hit for team ID:', req.params.id);
+    const team = await Team.findById(req.params.id).populate('players');
+    if (!team) {
+      console.log('Team not found:', req.params.id);
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    if (!team.players || team.players.length === 0) {
+      return res.json({
+        matchesWon: 0,
+        matchesLost: 0,
+        totalMatches: 0,
+        winPercentage: 0,
+        tournamentsWon: 0,
+        tournamentsPlayed: 0,
+        teamsTogether: []
+      });
+    }
+
+    // Normalize player IDs to strings for comparison
+    const teamPlayerIds = team.players.map(p => {
+      const id = p._id || p;
+      return id.toString ? id.toString() : String(id);
+    }).sort(); // Sort for consistent comparison
+
+    // Find all teams where the same players played together
+    // We need to check if the team has the same set of players (order doesn't matter)
+    const allTeams = await Team.find().populate('players').populate('tournament');
+    
+    const matchingTeams = allTeams.filter(t => {
+      if (!t.players || t.players.length !== teamPlayerIds.length) {
+        return false;
+      }
+      const tPlayerIds = t.players.map(p => {
+        const id = p._id || p;
+        return id.toString ? id.toString() : String(id);
+      }).sort();
+      
+      // Check if arrays are equal (same players)
+      return JSON.stringify(tPlayerIds) === JSON.stringify(teamPlayerIds);
+    });
+
+    if (matchingTeams.length === 0) {
+      return res.json({
+        matchesWon: 0,
+        matchesLost: 0,
+        totalMatches: 0,
+        winPercentage: 0,
+        tournamentsWon: 0,
+        tournamentsPlayed: 0,
+        teamsTogether: []
+      });
+    }
+
+    // Get all team IDs as strings for comparison
+    const matchingTeamIdStrings = matchingTeams.map(t => {
+      const id = t._id;
+      return id.toString ? id.toString() : String(id);
+    });
+
+    // Find all completed matches where these teams participated
+    const completedMatches = await Match.find({
+      status: 'completed',
+      winner: { $exists: true, $ne: null },
+      $or: [
+        { team1: { $in: matchingTeams.map(t => t._id) } },
+        { team2: { $in: matchingTeams.map(t => t._id) } }
+      ]
+    })
+    .populate('tournament')
+    .populate('team1')
+    .populate('team2')
+    .populate('winner')
+    .lean();
+
+    let matchesWon = 0;
+    let matchesLost = 0;
+    let totalMatches = 0;
+    const tournamentIds = new Set();
+    const tournamentWins = new Set();
+
+    // Helper function to safely get ID as string
+    const getIdAsString = (id) => {
+      if (!id) return null;
+      // If it's already a string
+      if (typeof id === 'string') return id;
+      // If it's an object with _id (populated)
+      if (id._id) {
+        const innerId = id._id;
+        return innerId.toString ? innerId.toString() : String(innerId);
+      }
+      // If it has toString method (ObjectId)
+      if (id.toString && typeof id.toString === 'function') {
+        return id.toString();
+      }
+      // Fallback
+      return String(id);
+    };
+
+    console.log(`Found ${completedMatches.length} completed matches for ${matchingTeams.length} matching teams`);
+    console.log(`Matching team IDs: ${matchingTeamIdStrings.join(', ')}`);
+
+    // Process matches
+    for (const match of completedMatches) {
+      if (!match.team1 || !match.team2 || !match.winner) {
+        console.log('Skipping match - missing team1, team2, or winner');
+        continue;
+      }
+
+      const team1Id = getIdAsString(match.team1);
+      const team2Id = getIdAsString(match.team2);
+      const winnerId = getIdAsString(match.winner);
+      const tournamentId = match.tournament ? getIdAsString(match.tournament) : null;
+
+      // Check if this match involves one of our matching teams
+      const team1Matches = matchingTeamIdStrings.includes(team1Id);
+      const team2Matches = matchingTeamIdStrings.includes(team2Id);
+
+      if (team1Matches || team2Matches) {
+        totalMatches++;
+        console.log(`Match found: Team1=${team1Id}, Team2=${team2Id}, Winner=${winnerId}, Our team participated: ${team1Matches || team2Matches}`);
+        
+        if (tournamentId) {
+          tournamentIds.add(tournamentId);
+        }
+
+        // Check if our team won
+        if (team1Matches && winnerId === team1Id) {
+          matchesWon++;
+          console.log(`  -> Win for team1`);
+          if (tournamentId && match.matchType === 'final') {
+            tournamentWins.add(tournamentId);
+          }
+        } else if (team2Matches && winnerId === team2Id) {
+          matchesWon++;
+          console.log(`  -> Win for team2`);
+          if (tournamentId && match.matchType === 'final') {
+            tournamentWins.add(tournamentId);
+          }
+        } else {
+          matchesLost++;
+          console.log(`  -> Loss`);
+        }
+      }
+    }
+
+    console.log(`Final stats: Total=${totalMatches}, Won=${matchesWon}, Lost=${matchesLost}`);
+
+    const winPercentage = totalMatches > 0 
+      ? parseFloat(((matchesWon / totalMatches) * 100).toFixed(1))
+      : 0;
+
+    // Get tournament details for teams together
+    const teamsTogether = matchingTeams.map(t => {
+      let tournamentInfo = null;
+      if (t.tournament) {
+        if (typeof t.tournament === 'object' && t.tournament._id) {
+          tournamentInfo = {
+            _id: t.tournament._id.toString(),
+            name: t.tournament.name || 'Unknown Tournament'
+          };
+        } else {
+          tournamentInfo = {
+            _id: t.tournament.toString(),
+            name: 'Unknown Tournament'
+          };
+        }
+      }
+      return {
+        _id: t._id.toString(),
+        name: t.name,
+        tournament: tournamentInfo,
+        matchesWon: t.matchesWon || 0,
+        matchesLost: t.matchesLost || 0,
+        points: t.points || 0
+      };
+    });
+
+    res.json({
+      matchesWon,
+      matchesLost,
+      totalMatches,
+      winPercentage,
+      tournamentsWon: tournamentWins.size,
+      tournamentsPlayed: tournamentIds.size,
+      teamsTogether
+    });
+  } catch (error) {
+    console.error('Error calculating past record:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single team
 router.get('/:id', async (req, res) => {
   try {

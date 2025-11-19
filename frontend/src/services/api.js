@@ -35,6 +35,7 @@ export const deletePlayer = (id) => api.delete(`/players/${id}`);
 export const getTeams = () => api.get('/teams');
 export const getTeamsByTournament = (tournamentId) => api.get(`/teams/tournament/${tournamentId}`);
 export const getTeam = (id) => api.get(`/teams/${id}`);
+export const getTeamPastRecord = (id) => api.get(`/teams/${id}/past-record`);
 export const createTeam = (data) => api.post('/teams', data);
 export const updateTeam = (id, data) => api.put(`/teams/${id}`, data);
 export const deleteTeam = (id) => api.delete(`/teams/${id}`);

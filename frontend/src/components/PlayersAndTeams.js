@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getPlayers, createPlayer, updatePlayer, deletePlayer,
-  getTeams, getTournaments, createTeam, deleteTeam 
+  getTeams, getTournaments, createTeam, deleteTeam, getTeamPastRecord
 } from '../services/api';
 import PinVerification from './PinVerification';
 
@@ -42,6 +42,11 @@ const PlayersAndTeams = () => {
   const [collapsedTournaments, setCollapsedTournaments] = useState(new Set());
   const [showAllTournaments, setShowAllTournaments] = useState(false);
   const [maxVisibleTournaments] = useState(5); // Show only 5 most recent by default
+  
+  // Past records state
+  const [teamPastRecords, setTeamPastRecords] = useState({});
+  const [expandedPastRecord, setExpandedPastRecord] = useState(null);
+  const [loadingPastRecord, setLoadingPastRecord] = useState(null);
   
   // PIN verification state
   const [showPinModal, setShowPinModal] = useState(false);
@@ -337,6 +342,29 @@ const PlayersAndTeams = () => {
     });
     setPendingActionType('delete-team');
     setShowPinModal(true);
+  };
+
+  const fetchTeamPastRecord = async (teamId) => {
+    if (teamPastRecords[teamId]) {
+      // Already loaded, just toggle expansion
+      setExpandedPastRecord(expandedPastRecord === teamId ? null : teamId);
+      return;
+    }
+
+    setLoadingPastRecord(teamId);
+    try {
+      const response = await getTeamPastRecord(teamId);
+      setTeamPastRecords(prev => ({
+        ...prev,
+        [teamId]: response.data
+      }));
+      setExpandedPastRecord(teamId);
+    } catch (error) {
+      console.error('Error fetching past record:', error);
+      alert('Failed to load past record');
+    } finally {
+      setLoadingPastRecord(null);
+    }
   };
 
   const handleDeleteAllTeams = (tournamentId, teams, tournamentStatus) => {
@@ -672,53 +700,157 @@ const PlayersAndTeams = () => {
                     <th style={{ color: '#000', fontWeight: 'bold', padding: '8px', fontSize: '12px' }}>Players</th>
                     <th style={{ color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '8px', fontSize: '12px' }}>W</th>
                     <th style={{ color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '8px', fontSize: '12px' }}>Pts</th>
+                    <th style={{ color: '#000', fontWeight: 'bold', textAlign: 'center', padding: '8px', fontSize: '12px' }}>Past Record</th>
                     <th style={{ color: '#000', fontWeight: 'bold', padding: '8px', fontSize: '12px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tournamentData.teams.map((team, teamIndex) => (
-                    <tr 
-                      key={team._id}
-                      style={{
-                        backgroundColor: teamIndex % 2 === 0 ? 'white' : '#f8f9fa',
-                        borderLeft: `3px solid ${colorScheme.border}`
-                      }}
-                    >
-                      <td style={{ padding: '8px' }}>
-                        <strong style={{ color: colorScheme.header, fontSize: '13px' }}>{team.name}</strong>
-                      </td>
-                      <td style={{ padding: '8px' }}>
-                        {team.players?.map((p, idx) => (
-                          <span key={p._id} style={{ fontSize: '12px' }}>
-                            {p.name}
-                            {idx < team.players.length - 1 ? ', ' : ''}
-                          </span>
-                        )) || '-'}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#4caf50', padding: '8px', fontSize: '13px' }}>
-                        {team.matchesWon || 0}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: colorScheme.header, padding: '8px', fontSize: '14px' }}>
-                        {team.points || 0}
-                      </td>
-                      <td style={{ padding: '8px' }}>
-                        {tournamentData.tournament && tournamentData.tournament.status !== 'completed' && (
-                          <button 
-                            className="btn btn-danger" 
-                            onClick={() => handleTeamDelete(team._id, tournamentData.tournament.status)} 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
-                          >
-                            Delete
-                          </button>
+                  {tournamentData.teams.map((team, teamIndex) => {
+                    const pastRecord = teamPastRecords[team._id];
+                    const isExpanded = expandedPastRecord === team._id;
+                    const isLoading = loadingPastRecord === team._id;
+                    
+                    return (
+                      <React.Fragment key={team._id}>
+                        <tr 
+                          style={{
+                            backgroundColor: teamIndex % 2 === 0 ? 'white' : '#f8f9fa',
+                            borderLeft: `3px solid ${colorScheme.border}`
+                          }}
+                        >
+                          <td style={{ padding: '8px' }}>
+                            <strong style={{ color: colorScheme.header, fontSize: '13px' }}>{team.name}</strong>
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            {team.players?.map((p, idx) => (
+                              <span key={p._id} style={{ fontSize: '12px' }}>
+                                {p.name}
+                                {idx < team.players.length - 1 ? ', ' : ''}
+                              </span>
+                            )) || '-'}
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#4caf50', padding: '8px', fontSize: '13px' }}>
+                            {team.matchesWon || 0}
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 'bold', color: colorScheme.header, padding: '8px', fontSize: '14px' }}>
+                            {team.points || 0}
+                          </td>
+                          <td style={{ textAlign: 'center', padding: '8px' }}>
+                            <button
+                              onClick={() => fetchTeamPastRecord(team._id)}
+                              disabled={isLoading}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '11px',
+                                backgroundColor: isExpanded ? '#4caf50' : '#2196f3',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: isLoading ? 'wait' : 'pointer',
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="View past record when these players played together"
+                            >
+                              {isLoading ? '⏳' : isExpanded ? '📊 Hide' : '📊 Show'}
+                            </button>
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            {tournamentData.tournament && tournamentData.tournament.status !== 'completed' && (
+                              <button 
+                                className="btn btn-danger" 
+                                onClick={() => handleTeamDelete(team._id, tournamentData.tournament.status)} 
+                                style={{ padding: '4px 8px', fontSize: '11px' }}
+                              >
+                                Delete
+                              </button>
+                            )}
+                            {tournamentData.tournament && tournamentData.tournament.status === 'completed' && (
+                              <span style={{ color: '#999', fontSize: '11px', fontStyle: 'italic' }}>
+                                Locked
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                        {isExpanded && pastRecord && (
+                          <tr>
+                            <td colSpan="6" style={{ padding: '15px', backgroundColor: '#f0f7ff', borderLeft: `3px solid #2196f3` }}>
+                              <div style={{ marginBottom: '10px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#1976d2' }}>
+                                  📈 Past Record (When These Players Played Together)
+                                </h4>
+                                <div style={{ 
+                                  display: 'grid', 
+                                  gridTemplateColumns: windowWidth < 480 ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))',
+                                  gap: '10px',
+                                  marginBottom: '15px'
+                                }}>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Total Matches</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2196f3' }}>{pastRecord.totalMatches || 0}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Won</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#4caf50' }}>{pastRecord.matchesWon || 0}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Lost</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f44336' }}>{pastRecord.matchesLost || 0}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Win %</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: pastRecord.winPercentage >= 70 ? '#4caf50' : pastRecord.winPercentage >= 50 ? '#8bc34a' : '#ff9800' }}>
+                                      {pastRecord.winPercentage || 0}%
+                                    </div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>Tournaments</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#673ab7' }}>{pastRecord.tournamentsPlayed || 0}</div>
+                                  </div>
+                                  <div style={{ padding: '10px', background: 'white', borderRadius: '5px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>🏆 Won</div>
+                                    <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#ff9800' }}>{pastRecord.tournamentsWon || 0}</div>
+                                  </div>
+                                </div>
+                                {pastRecord.teamsTogether && pastRecord.teamsTogether.length > 0 && (
+                                  <div style={{ marginTop: '15px' }}>
+                                    <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: '#666' }}>
+                                      Teams Together ({pastRecord.teamsTogether.length}):
+                                    </div>
+                                    <div style={{ 
+                                      display: 'grid', 
+                                      gridTemplateColumns: windowWidth < 480 ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))',
+                                      gap: '8px'
+                                    }}>
+                                      {pastRecord.teamsTogether.map((t, idx) => (
+                                        <div key={idx} style={{ 
+                                          padding: '8px', 
+                                          background: 'white', 
+                                          borderRadius: '4px',
+                                          fontSize: '11px',
+                                          border: '1px solid #ddd'
+                                        }}>
+                                          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{t.name}</div>
+                                          {t.tournament && (
+                                            <div style={{ color: '#666', marginBottom: '4px' }}>📅 {t.tournament.name}</div>
+                                          )}
+                                          <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: '#666' }}>
+                                            <span>W: {t.matchesWon || 0}</span>
+                                            <span>L: {t.matchesLost || 0}</span>
+                                            <span>Pts: {t.points || 0}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                        {tournamentData.tournament && tournamentData.tournament.status === 'completed' && (
-                          <span style={{ color: '#999', fontSize: '11px', fontStyle: 'italic' }}>
-                            Locked
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
