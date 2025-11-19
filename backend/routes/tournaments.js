@@ -28,8 +28,9 @@ router.get('/', async (req, res) => {
       .populate('winner')
       .sort({ createdAt: -1 });
     
-    // Manually populate winner's players if winner exists
+    // Manually populate winner's and runner-up's players if they exist
     tournaments = await Promise.all(tournaments.map(async (tournament) => {
+      // Populate winner's players
       if (tournament.winner) {
         // Get the winner team ID - handle both ObjectId and string
         let winnerId;
@@ -56,6 +57,54 @@ router.get('/', async (req, res) => {
           }
         }
       }
+      
+      // Populate runner-up's players from final match
+      if (tournament.finalMatch && tournament.finalMatch.team1 && tournament.finalMatch.team2 && tournament.winner) {
+        const finalMatch = tournament.finalMatch;
+        const winnerId = tournament.winner._id 
+          ? tournament.winner._id.toString() 
+          : (tournament.winner.toString ? tournament.winner.toString() : String(tournament.winner));
+        
+        // Get team1 and team2 IDs
+        const team1Id = finalMatch.team1._id 
+          ? finalMatch.team1._id.toString() 
+          : (finalMatch.team1.toString ? finalMatch.team1.toString() : String(finalMatch.team1));
+        const team2Id = finalMatch.team2._id 
+          ? finalMatch.team2._id.toString() 
+          : (finalMatch.team2.toString ? finalMatch.team2.toString() : String(finalMatch.team2));
+        
+        // Find the runner-up (the team that's not the winner)
+        let runnerUpId = null;
+        if (team1Id === winnerId) {
+          runnerUpId = team2Id;
+        } else if (team2Id === winnerId) {
+          runnerUpId = team1Id;
+        }
+        
+        // Populate runner-up team's players
+        if (runnerUpId) {
+          const runnerUpTeam = await Team.findById(runnerUpId).populate('players');
+          if (runnerUpTeam && runnerUpTeam.players) {
+            const hasPopulatedPlayers = runnerUpTeam.players.some(p => p && p.name);
+            if (hasPopulatedPlayers) {
+              // Update the finalMatch team reference with populated data
+              if (team1Id === winnerId) {
+                tournament.finalMatch.team2 = runnerUpTeam.toObject ? runnerUpTeam.toObject() : runnerUpTeam;
+              } else {
+                tournament.finalMatch.team1 = runnerUpTeam.toObject ? runnerUpTeam.toObject() : runnerUpTeam;
+              }
+            } else {
+              await runnerUpTeam.populate('players');
+              if (team1Id === winnerId) {
+                tournament.finalMatch.team2 = runnerUpTeam.toObject ? runnerUpTeam.toObject() : runnerUpTeam;
+              } else {
+                tournament.finalMatch.team1 = runnerUpTeam.toObject ? runnerUpTeam.toObject() : runnerUpTeam;
+              }
+            }
+          }
+        }
+      }
+      
       return tournament;
     }));
     

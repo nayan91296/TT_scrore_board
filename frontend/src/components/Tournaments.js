@@ -508,14 +508,38 @@ const Tournaments = () => {
                             }}>
                               🥈 {runnerUp.name}
                             </span>
-                            {runnerUpPlayerNames && runnerUpPlayerNames.length > 0 && (
+                            {runnerUpPlayerNames && runnerUpPlayerNames.length > 0 ? (
                               <span style={{ 
                                 fontSize: '11px',
                                 color: '#6c757d',
-                                fontStyle: 'italic'
+                                fontStyle: 'italic',
+                                display: 'block',
+                                marginTop: '2px'
                               }}>
                                 {runnerUpPlayerNames}
                               </span>
+                            ) : (
+                              // If players not populated, try to get from teams array
+                              (() => {
+                                const runnerUpFromTeams = getTeamInfo(runnerUp, tournament.teams);
+                                if (runnerUpFromTeams) {
+                                  const names = getPlayerNames(runnerUpFromTeams);
+                                  if (names && names.length > 0) {
+                                    return (
+                                      <span style={{ 
+                                        fontSize: '11px',
+                                        color: '#6c757d',
+                                        fontStyle: 'italic',
+                                        display: 'block',
+                                        marginTop: '2px'
+                                      }}>
+                                        {names}
+                                      </span>
+                                    );
+                                  }
+                                }
+                                return null;
+                              })()
                             )}
                           </div>
                         );
