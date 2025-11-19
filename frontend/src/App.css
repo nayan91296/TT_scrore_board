@@ -24,6 +24,11 @@
     padding: 12px 15px;
     gap: 15px;
   }
+  
+  /* Adjust content padding for fixed navbar on mobile */
+  .App > .container {
+    padding-top: 90px !important;
+  }
 
   .navbar h1 {
     font-size: 18px;
@@ -96,6 +101,11 @@
     align-items: flex-start;
     gap: 12px;
     padding: 10px 15px;
+  }
+  
+  /* Adjust content padding for fixed navbar on small mobile */
+  .App > .container {
+    padding-top: 120px !important;
   }
 
   .navbar h1 {

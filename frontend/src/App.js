@@ -43,7 +43,7 @@ function App() {
             <NavLinks />
           </div>
         </div>
-        <div className="container" style={{ maxWidth: '100%', padding: '0 20px' }}>
+        <div className="container" style={{ maxWidth: '100%', padding: '0 20px', paddingTop: '100px' }}>
           <Routes>
             <Route path="/" element={<Tournaments />} />
             <Route path="/tournaments/:id" element={<TournamentDetail />} />

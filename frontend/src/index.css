@@ -11,6 +11,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f5f5f5;
+  padding-top: 0; /* Navbar is fixed, no body padding needed */
 }
 
 code {
@@ -170,6 +171,12 @@ code {
   padding: 0;
   margin-bottom: 30px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
 }
 
 .navbar .container {
