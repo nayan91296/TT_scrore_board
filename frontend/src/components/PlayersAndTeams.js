@@ -867,6 +867,7 @@ const PlayersAndTeams = () => {
                       <th style={{ textAlign: 'center' }}>Semi</th>
                       <th style={{ textAlign: 'center' }}>Final</th>
                       <th style={{ textAlign: 'center' }}>🏆</th>
+                      <th style={{ textAlign: 'center' }}>Tournaments</th>
                       {/* <th style={{ fontSize: windowWidth < 480 ? '10px' : '12px' }}>Joined</th> */}
                       <th>Actions</th>
                     </tr>
@@ -940,7 +941,15 @@ const PlayersAndTeams = () => {
                           color: tournamentsWon > 0 ? '#ff9800' : '#666',
                           fontSize: windowWidth < 480 ? '14px' : '16px'
                         }}>
-                          {tournamentsWon > 0 ? '🏆 ' : ''}{tournamentsWon}
+                          {tournamentsWon}
+                        </td>
+                        <td style={{ 
+                          textAlign: 'center', 
+                          fontWeight: 'bold', 
+                          color: '#673ab7',
+                          fontSize: windowWidth < 480 ? '13px' : '14px'
+                        }}>
+                          {player.tournamentsPlayed || 0}
                         </td>
                         {/* <td style={{ fontSize: windowWidth < 480 ? '10px' : '12px', color: '#666' }}>{joinedDate}</td> */}
                         <td>

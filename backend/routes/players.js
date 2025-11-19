@@ -8,11 +8,11 @@ const Tournament = require('../models/Tournament');
 // Helper function to calculate player statistics from matches and tournaments
 const calculatePlayerStats = async (playerId) => {
   try {
-    // Find all teams that include this player
-    const teams = await Team.find({ players: playerId });
+    // Find all teams that include this player (populate tournament for tournamentsPlayed calculation)
+    const teams = await Team.find({ players: playerId }).populate('tournament');
     
     if (teams.length === 0) {
-      return { matchesWon: 0, matchesLost: 0, winPercentage: 0, tournamentsWon: 0, totalMatches: 0, finalMatches: 0, semiFinalMatches: 0 };
+      return { matchesWon: 0, matchesLost: 0, winPercentage: 0, tournamentsWon: 0, tournamentsPlayed: 0, totalMatches: 0, finalMatches: 0, semiFinalMatches: 0 };
     }
     
     // Convert team IDs to strings for comparison (normalize all to strings)
@@ -115,11 +115,33 @@ const calculatePlayerStats = async (playerId) => {
       winner: { $in: teams.map(t => t._id) }
     });
     
+    // Count unique tournaments from teams
+    // Handle both populated tournament objects and tournament IDs
+    const uniqueTournamentIds = [...new Set(teams.map(t => {
+      if (!t.tournament) return null;
+      
+      // If tournament is populated (object with _id)
+      if (typeof t.tournament === 'object' && t.tournament._id) {
+        return t.tournament._id.toString();
+      }
+      
+      // If tournament is just an ID (ObjectId or string)
+      if (t.tournament.toString && typeof t.tournament.toString === 'function') {
+        return t.tournament.toString();
+      }
+      
+      // Fallback to string conversion
+      return String(t.tournament);
+    }).filter(Boolean))];
+    
+    const tournamentsPlayedCount = uniqueTournamentIds.length;
+    
     const result = { 
       matchesWon, 
       matchesLost, 
       winPercentage: parseFloat(winPercentage),
       tournamentsWon,
+      tournamentsPlayed: tournamentsPlayedCount,
       totalMatches: totalMatchesCount,
       finalMatches: finalMatchesCount,
       semiFinalMatches: semiFinalMatchesCount
@@ -133,7 +155,7 @@ const calculatePlayerStats = async (playerId) => {
     return result;
   } catch (error) {
     console.error('Error calculating player stats:', error);
-    return { matchesWon: 0, matchesLost: 0, winPercentage: 0, tournamentsWon: 0, totalMatches: 0, finalMatches: 0, semiFinalMatches: 0 };
+    return { matchesWon: 0, matchesLost: 0, winPercentage: 0, tournamentsWon: 0, tournamentsPlayed: 0, totalMatches: 0, finalMatches: 0, semiFinalMatches: 0 };
   }
 };
 
@@ -152,6 +174,7 @@ router.get('/', async (req, res) => {
           matchesLost: stats.matchesLost,
           winPercentage: stats.winPercentage,
           tournamentsWon: stats.tournamentsWon,
+          tournamentsPlayed: stats.tournamentsPlayed,
           totalMatches: stats.totalMatches,
           finalMatches: stats.finalMatches,
           semiFinalMatches: stats.semiFinalMatches
