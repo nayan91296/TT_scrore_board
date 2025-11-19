@@ -214,6 +214,7 @@ const Tournaments = () => {
                 <th>Status</th>
                 <th>Teams</th>
                 <th>Winner</th>
+                <th>Runner-Up</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -265,6 +266,64 @@ const Tournaments = () => {
                           .filter(name => name !== null && name !== undefined && name !== '');
                         
                         return names.join(', ');
+                      };
+                      
+                      // Helper function to get team info (handles both populated and unpopulated)
+                      const getTeamInfo = (teamId, teamsArray) => {
+                        if (!teamId) return null;
+                        
+                        // If teamId is already a populated object
+                        if (teamId && typeof teamId === 'object' && teamId.name) {
+                          return teamId;
+                        }
+                        
+                        // If teamId is an ObjectId, find in teams array
+                        if (teamsArray && Array.isArray(teamsArray)) {
+                          const idStr = teamId._id ? teamId._id.toString() : teamId.toString();
+                          return teamsArray.find(t => {
+                            const teamIdStr = t._id ? t._id.toString() : t.toString();
+                            return teamIdStr === idStr;
+                          });
+                        }
+                        
+                        return null;
+                      };
+                      
+                      // Get runner-up from final match
+                      const getRunnerUp = () => {
+                        if (!tournament.finalMatch || !tournament.finalMatch.team1 || !tournament.finalMatch.team2) {
+                          return null;
+                        }
+                        
+                        const finalMatch = tournament.finalMatch;
+                        const winnerId = tournament.winner 
+                          ? (tournament.winner._id ? tournament.winner._id.toString() : tournament.winner.toString())
+                          : null;
+                        
+                        if (!winnerId) return null;
+                        
+                        // Get team1 and team2 IDs
+                        const team1Id = finalMatch.team1._id 
+                          ? finalMatch.team1._id.toString() 
+                          : (finalMatch.team1.toString ? finalMatch.team1.toString() : String(finalMatch.team1));
+                        const team2Id = finalMatch.team2._id 
+                          ? finalMatch.team2._id.toString() 
+                          : (finalMatch.team2.toString ? finalMatch.team2.toString() : String(finalMatch.team2));
+                        
+                        // Find the runner-up (the team that's not the winner)
+                        let runnerUp = null;
+                        if (team1Id === winnerId) {
+                          runnerUp = finalMatch.team2;
+                        } else if (team2Id === winnerId) {
+                          runnerUp = finalMatch.team1;
+                        }
+                        
+                        // If runner-up is not populated, try to find in teams array
+                        if (runnerUp && (!runnerUp.name || !runnerUp.players)) {
+                          runnerUp = getTeamInfo(runnerUp, tournament.teams);
+                        }
+                        
+                        return runnerUp;
                       };
                       
                       // Check if winner is populated (has name property)
@@ -344,6 +403,131 @@ const Tournaments = () => {
                           fontStyle: 'italic'
                         }}>
                           {tournament.status === 'completed' ? 'No winner set' : 'TBD'}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td>
+                    {(() => {
+                      // Helper function to get player names from a team
+                      const getPlayerNames = (team) => {
+                        if (!team || !team.players) return '';
+                        if (!Array.isArray(team.players)) return '';
+                        
+                        const names = team.players
+                          .map(p => {
+                            // If player is an object with name property
+                            if (p && typeof p === 'object' && p.name) {
+                              return p.name;
+                            }
+                            // If player is a string and not an ObjectId (24 hex chars)
+                            if (typeof p === 'string' && !/^[0-9a-fA-F]{24}$/.test(p)) {
+                              return p;
+                            }
+                            return null;
+                          })
+                          .filter(name => name !== null && name !== undefined && name !== '');
+                        
+                        return names.join(', ');
+                      };
+                      
+                      // Helper function to get team info (handles both populated and unpopulated)
+                      const getTeamInfo = (teamId, teamsArray) => {
+                        if (!teamId) return null;
+                        
+                        // If teamId is already a populated object
+                        if (teamId && typeof teamId === 'object' && teamId.name) {
+                          return teamId;
+                        }
+                        
+                        // If teamId is an ObjectId, find in teams array
+                        if (teamsArray && Array.isArray(teamsArray)) {
+                          const idStr = teamId._id ? teamId._id.toString() : teamId.toString();
+                          return teamsArray.find(t => {
+                            const teamIdStr = t._id ? t._id.toString() : t.toString();
+                            return teamIdStr === idStr;
+                          });
+                        }
+                        
+                        return null;
+                      };
+                      
+                      // Get runner-up from final match
+                      const getRunnerUp = () => {
+                        if (!tournament.finalMatch || !tournament.finalMatch.team1 || !tournament.finalMatch.team2) {
+                          return null;
+                        }
+                        
+                        const finalMatch = tournament.finalMatch;
+                        const winnerId = tournament.winner 
+                          ? (tournament.winner._id ? tournament.winner._id.toString() : tournament.winner.toString())
+                          : null;
+                        
+                        if (!winnerId) return null;
+                        
+                        // Get team1 and team2 IDs
+                        const team1Id = finalMatch.team1._id 
+                          ? finalMatch.team1._id.toString() 
+                          : (finalMatch.team1.toString ? finalMatch.team1.toString() : String(finalMatch.team1));
+                        const team2Id = finalMatch.team2._id 
+                          ? finalMatch.team2._id.toString() 
+                          : (finalMatch.team2.toString ? finalMatch.team2.toString() : String(finalMatch.team2));
+                        
+                        // Find the runner-up (the team that's not the winner)
+                        let runnerUp = null;
+                        if (team1Id === winnerId) {
+                          runnerUp = finalMatch.team2;
+                        } else if (team2Id === winnerId) {
+                          runnerUp = finalMatch.team1;
+                        }
+                        
+                        // If runner-up is not populated, try to find in teams array
+                        if (runnerUp && (!runnerUp.name || !runnerUp.players)) {
+                          runnerUp = getTeamInfo(runnerUp, tournament.teams);
+                        }
+                        
+                        return runnerUp;
+                      };
+                      
+                      const runnerUp = getRunnerUp();
+                      
+                      if (runnerUp && runnerUp.name) {
+                        const runnerUpPlayerNames = getPlayerNames(runnerUp);
+                        return (
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px'
+                          }}>
+                            <span style={{ 
+                              color: '#c0c0c0', 
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}>
+                              🥈 {runnerUp.name}
+                            </span>
+                            {runnerUpPlayerNames && runnerUpPlayerNames.length > 0 && (
+                              <span style={{ 
+                                fontSize: '11px',
+                                color: '#6c757d',
+                                fontStyle: 'italic'
+                              }}>
+                                {runnerUpPlayerNames}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      
+                      // No runner-up
+                      return (
+                        <span style={{ 
+                          color: '#6c757d', 
+                          fontStyle: 'italic'
+                        }}>
+                          {tournament.status === 'completed' ? '-' : 'TBD'}
                         </span>
                       );
                     })()}

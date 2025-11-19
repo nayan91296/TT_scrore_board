@@ -21,7 +21,10 @@ router.get('/', async (req, res) => {
         populate: { path: 'players' }
       })
       .populate('semiFinalMatches')
-      .populate('finalMatch')
+      .populate({
+        path: 'finalMatch',
+        populate: { path: 'team1 team2 winner' }
+      })
       .populate('winner')
       .sort({ createdAt: -1 });
     
