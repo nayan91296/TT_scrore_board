@@ -5,6 +5,9 @@ import Tournaments from './components/Tournaments';
 import PlayersAndTeams from './components/PlayersAndTeams';
 import TournamentDetail from './components/TournamentDetail';
 import PlayerRankings from './components/PlayerRankings';
+import PlayerHeadToHead from './components/PlayerHeadToHead';
+import StatisticsDashboard from './components/StatisticsDashboard';
+import MatchHistory from './components/MatchHistory';
 
 const NavLinks = () => {
   const location = useLocation();
@@ -29,6 +32,24 @@ const NavLinks = () => {
       >
         Rankings
       </Link>
+      <Link 
+        to="/head-to-head" 
+        className={location.pathname === '/head-to-head' ? 'active' : ''}
+      >
+        Head-to-Head
+      </Link>
+      <Link 
+        to="/statistics" 
+        className={location.pathname === '/statistics' ? 'active' : ''}
+      >
+        Statistics
+      </Link>
+      <Link 
+        to="/match-history" 
+        className={location.pathname === '/match-history' ? 'active' : ''}
+      >
+        Match History
+      </Link>
     </nav>
   );
 };
@@ -49,6 +70,9 @@ function App() {
             <Route path="/tournaments/:id" element={<TournamentDetail />} />
             <Route path="/players-teams" element={<PlayersAndTeams />} />
             <Route path="/rankings" element={<PlayerRankings />} />
+            <Route path="/head-to-head" element={<PlayerHeadToHead />} />
+            <Route path="/statistics" element={<StatisticsDashboard />} />
+            <Route path="/match-history" element={<MatchHistory />} />
             {/* Keep old routes for backward compatibility */}
             <Route path="/players" element={<PlayersAndTeams />} />
             <Route path="/teams" element={<PlayersAndTeams />} />

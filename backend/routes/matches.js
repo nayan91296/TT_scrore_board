@@ -9,9 +9,18 @@ router.get('/', async (req, res) => {
   try {
     const matches = await Match.find()
       .populate('tournament')
-      .populate('team1')
-      .populate('team2')
-      .populate('winner')
+      .populate({
+        path: 'team1',
+        populate: { path: 'players' }
+      })
+      .populate({
+        path: 'team2',
+        populate: { path: 'players' }
+      })
+      .populate({
+        path: 'winner',
+        populate: { path: 'players' }
+      })
       .populate('tossWinner')
       .sort({ matchDate: -1 });
     res.json(matches);
