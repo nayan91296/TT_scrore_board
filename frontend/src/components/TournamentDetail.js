@@ -249,7 +249,7 @@ const TournamentDetail = () => {
 
   const handleUpdateSemiFinal2 = async () => {
     try {
-      const response = await fetch(`http://192.168.212.209:5001/api/tournaments/${id}/update-semifinal2`, {
+      const response = await fetch(`http://https://tt-scrore-board.onrender.com/api/tournaments/${id}/update-semifinal2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
