@@ -6,7 +6,7 @@ const PinVerification = ({ onVerify, onCancel, action = 'perform this action' })
 
   // Default PIN - can be changed via localStorage
   const getStoredPin = () => {
-    return localStorage.getItem('app_pin') || '1111';
+    return localStorage.getItem('app_pin') || process.env.REACT_APP_PIN;
   };
 
   const handleSubmit = (e) => {
