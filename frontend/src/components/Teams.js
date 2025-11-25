@@ -58,7 +58,7 @@ const Teams = () => {
   }, [selectedTournament, allTeams]);
 
   const loadTeams = async () => {
-    setLoading({ ...loading, loadingTeams: true });
+    setLoading(prev => ({ ...prev, loadingTeams: true }));
     try {
       const response = await getTeams();
       setAllTeams(response.data);
@@ -67,31 +67,31 @@ const Teams = () => {
       console.error('Error loading teams:', error);
       alert('Failed to load teams');
     } finally {
-      setLoading({ ...loading, loadingTeams: false });
+      setLoading(prev => ({ ...prev, loadingTeams: false }));
     }
   };
 
   const loadTournaments = async () => {
-    setLoading({ ...loading, loadingTournaments: true });
+    setLoading(prev => ({ ...prev, loadingTournaments: true }));
     try {
       const response = await getTournaments();
       setTournaments(response.data);
     } catch (error) {
       console.error('Error loading tournaments:', error);
     } finally {
-      setLoading({ ...loading, loadingTournaments: false });
+      setLoading(prev => ({ ...prev, loadingTournaments: false }));
     }
   };
 
   const loadPlayers = async () => {
-    setLoading({ ...loading, loadingPlayers: true });
+    setLoading(prev => ({ ...prev, loadingPlayers: true }));
     try {
       const response = await getPlayers();
       setPlayers(response.data);
     } catch (error) {
       console.error('Error loading players:', error);
     } finally {
-      setLoading({ ...loading, loadingPlayers: false });
+      setLoading(prev => ({ ...prev, loadingPlayers: false }));
     }
   };
 
@@ -101,7 +101,7 @@ const Teams = () => {
       alert('Please select a tournament and at least one player');
       return;
     }
-    setLoading({ ...loading, submit: true });
+    setLoading(prev => ({ ...prev, submit: true }));
     try {
       await createTeam(formData);
       setShowModal(false);
@@ -111,7 +111,7 @@ const Teams = () => {
       console.error('Error creating team:', error);
       alert(error.response?.data?.error || 'Failed to create team');
     } finally {
-      setLoading({ ...loading, submit: false });
+      setLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
@@ -125,7 +125,7 @@ const Teams = () => {
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
-      setLoading({ ...loading, delete: id });
+      setLoading(prev => ({ ...prev, delete: id }));
       try {
         await deleteTeam(id);
         loadTeams();
@@ -133,7 +133,7 @@ const Teams = () => {
         console.error('Error deleting team:', error);
         alert('Failed to delete team');
       } finally {
-        setLoading({ ...loading, delete: null });
+        setLoading(prev => ({ ...prev, delete: null }));
       }
     });
     setPendingActionType('delete');
@@ -195,7 +195,7 @@ const Teams = () => {
       return;
     }
 
-    setLoading({ ...loading, generateRandom: true });
+    setLoading(prev => ({ ...prev, generateRandom: true }));
     try {
       // Shuffle players array
       const shuffledPlayers = [...availablePlayers].sort(() => Math.random() - 0.5);
@@ -229,7 +229,7 @@ const Teams = () => {
       console.error('Error generating random teams:', error);
       alert(error.response?.data?.error || 'Failed to generate random teams');
     } finally {
-      setLoading({ ...loading, generateRandom: false });
+      setLoading(prev => ({ ...prev, generateRandom: false }));
     }
   };
 

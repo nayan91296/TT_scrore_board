@@ -29,7 +29,7 @@ const Players = () => {
   }, []);
 
   const loadPlayers = async () => {
-    setLoading({ ...loading, loadingPlayers: true });
+    setLoading(prev => ({ ...prev, loadingPlayers: true }));
     try {
       const response = await getPlayers();
       setAllPlayers(response.data);
@@ -38,7 +38,7 @@ const Players = () => {
       console.error('Error loading players:', error);
       alert('Failed to load players');
     } finally {
-      setLoading({ ...loading, loadingPlayers: false });
+      setLoading(prev => ({ ...prev, loadingPlayers: false }));
     }
   };
 
@@ -92,7 +92,7 @@ const Players = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading({ ...loading, submit: true });
+    setLoading(prev => ({ ...prev, submit: true }));
     try {
       if (editingPlayer) {
         await updatePlayer(editingPlayer._id, formData);
@@ -107,7 +107,7 @@ const Players = () => {
       console.error('Error saving player:', error);
       alert('Failed to save player');
     } finally {
-      setLoading({ ...loading, submit: false });
+      setLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
@@ -128,7 +128,7 @@ const Players = () => {
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
-      setLoading({ ...loading, delete: id });
+      setLoading(prev => ({ ...prev, delete: id }));
       try {
         await deletePlayer(id);
         loadPlayers();
@@ -136,7 +136,7 @@ const Players = () => {
         console.error('Error deleting player:', error);
         alert('Failed to delete player');
       } finally {
-        setLoading({ ...loading, delete: null });
+        setLoading(prev => ({ ...prev, delete: null }));
       }
     });
     setPendingActionType('delete');

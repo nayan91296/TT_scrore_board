@@ -118,7 +118,7 @@ const PlayersAndTeams = () => {
 
   // Players functions
   const loadPlayers = async () => {
-    setLoading({ ...loading, loadingPlayers: true });
+    setLoading(prev => ({ ...prev, loadingPlayers: true }));
     try {
       const response = await getPlayers();
       // Log to verify data structure
@@ -137,7 +137,7 @@ const PlayersAndTeams = () => {
       console.error('Error loading players:', error);
       alert('Failed to load players');
     } finally {
-      setLoading({ ...loading, loadingPlayers: false });
+      setLoading(prev => ({ ...prev, loadingPlayers: false }));
     }
   };
 
@@ -227,7 +227,7 @@ const PlayersAndTeams = () => {
 
   const handlePlayerSubmit = async (e) => {
     e.preventDefault();
-    setLoading({ ...loading, playerSubmit: true });
+    setLoading(prev => ({ ...prev, playerSubmit: true }));
     try {
       if (editingPlayer) {
         await updatePlayer(editingPlayer._id, playerFormData);
@@ -242,7 +242,7 @@ const PlayersAndTeams = () => {
       console.error('Error saving player:', error);
       alert('Failed to save player');
     } finally {
-      setLoading({ ...loading, playerSubmit: false });
+      setLoading(prev => ({ ...prev, playerSubmit: false }));
     }
   };
 
@@ -260,7 +260,7 @@ const PlayersAndTeams = () => {
 
   const handlePlayerDelete = (id) => {
     setPendingAction(() => async () => {
-      setLoading({ ...loading, playerDelete: id });
+      setLoading(prev => ({ ...prev, playerDelete: id }));
       try {
         await deletePlayer(id);
         loadPlayers();
@@ -268,7 +268,7 @@ const PlayersAndTeams = () => {
         console.error('Error deleting player:', error);
         alert('Failed to delete player');
       } finally {
-        setLoading({ ...loading, playerDelete: null });
+        setLoading(prev => ({ ...prev, playerDelete: null }));
       }
     });
     setPendingActionType('delete-player');
@@ -298,7 +298,7 @@ const PlayersAndTeams = () => {
 
   // Teams functions
   const loadTeams = async () => {
-    setLoading({ ...loading, loadingTeams: true });
+    setLoading(prev => ({ ...prev, loadingTeams: true }));
     try {
       const response = await getTeams();
       setAllTeams(response.data);
@@ -307,19 +307,19 @@ const PlayersAndTeams = () => {
       console.error('Error loading teams:', error);
       alert('Failed to load teams');
     } finally {
-      setLoading({ ...loading, loadingTeams: false });
+      setLoading(prev => ({ ...prev, loadingTeams: false }));
     }
   };
 
   const loadTournaments = async () => {
-    setLoading({ ...loading, loadingTournaments: true });
+    setLoading(prev => ({ ...prev, loadingTournaments: true }));
     try {
       const response = await getTournaments();
       setTournaments(response.data);
     } catch (error) {
       console.error('Error loading tournaments:', error);
     } finally {
-      setLoading({ ...loading, loadingTournaments: false });
+      setLoading(prev => ({ ...prev, loadingTournaments: false }));
     }
   };
 
@@ -329,7 +329,7 @@ const PlayersAndTeams = () => {
       alert('Please select a tournament and at least one player');
       return;
     }
-    setLoading({ ...loading, teamSubmit: true });
+    setLoading(prev => ({ ...prev, teamSubmit: true }));
     try {
       await createTeam(teamFormData);
       setShowTeamModal(false);
@@ -339,7 +339,7 @@ const PlayersAndTeams = () => {
       console.error('Error creating team:', error);
       alert(error.response?.data?.error || 'Failed to create team');
     } finally {
-      setLoading({ ...loading, teamSubmit: false });
+      setLoading(prev => ({ ...prev, teamSubmit: false }));
     }
   };
 
@@ -363,7 +363,7 @@ const PlayersAndTeams = () => {
         return;
       }
       
-      setLoading({ ...loading, teamDelete: id });
+      setLoading(prev => ({ ...prev, teamDelete: id }));
       try {
         await deleteTeam(id);
         loadTeams();
@@ -372,7 +372,7 @@ const PlayersAndTeams = () => {
         console.error('Error deleting team:', error);
         alert('Failed to delete team: ' + (error.response?.data?.error || error.message));
       } finally {
-        setLoading({ ...loading, teamDelete: null });
+        setLoading(prev => ({ ...prev, teamDelete: null }));
       }
     });
     setPendingActionType('delete-team');
@@ -419,7 +419,7 @@ const PlayersAndTeams = () => {
         return;
       }
       
-      setLoading({ ...loading, deleteAllTeams: tournamentId });
+      setLoading(prev => ({ ...prev, deleteAllTeams: tournamentId }));
       try {
         // Delete all teams for this tournament
         const deletePromises = teams.map(team => deleteTeam(team._id));
@@ -430,7 +430,7 @@ const PlayersAndTeams = () => {
         console.error('Error deleting teams:', error);
         alert('Failed to delete teams: ' + (error.response?.data?.error || error.message));
       } finally {
-        setLoading({ ...loading, deleteAllTeams: null });
+        setLoading(prev => ({ ...prev, deleteAllTeams: null }));
       }
     });
     setPendingActionType('delete-all-teams');
@@ -476,7 +476,7 @@ const PlayersAndTeams = () => {
       return;
     }
 
-    setLoading({ ...loading, generateRandom: true });
+    setLoading(prev => ({ ...prev, generateRandom: true }));
     try {
       const shuffledPlayers = [...availablePlayers].sort(() => Math.random() - 0.5);
       
@@ -507,7 +507,7 @@ const PlayersAndTeams = () => {
       console.error('Error generating random teams:', error);
       alert(error.response?.data?.error || 'Failed to generate random teams');
     } finally {
-      setLoading({ ...loading, generateRandom: false });
+      setLoading(prev => ({ ...prev, generateRandom: false }));
     }
   };
 
@@ -948,13 +948,13 @@ const PlayersAndTeams = () => {
               <button 
                 className="btn btn-secondary" 
                 onClick={async (e) => {
-                  setLoading({ ...loading, refreshPlayers: true });
+                  setLoading(prev => ({ ...prev, refreshPlayers: true }));
                   try {
                     await loadPlayers();
                   } catch (error) {
                     console.error('Error refreshing players:', error);
                   } finally {
-                    setLoading({ ...loading, refreshPlayers: false });
+                    setLoading(prev => ({ ...prev, refreshPlayers: false }));
                   }
                 }} 
                 disabled={loading.refreshPlayers}

@@ -49,7 +49,7 @@ const Tournaments = () => {
 
   // Load all tournaments on mount to get accurate counts
   const loadAllTournaments = async () => {
-    setLoading({ ...loading, loadingTournaments: true });
+    setLoading(prev => ({ ...prev, loadingTournaments: true }));
     try {
       const response = await getTournaments();
       setTournaments(response.data);
@@ -57,7 +57,7 @@ const Tournaments = () => {
       console.error('Error loading tournaments:', error);
       alert('Failed to load tournaments');
     } finally {
-      setLoading({ ...loading, loadingTournaments: false });
+      setLoading(prev => ({ ...prev, loadingTournaments: false }));
     }
   };
 
@@ -68,7 +68,7 @@ const Tournaments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading({ ...loading, submit: true });
+    setLoading(prev => ({ ...prev, submit: true }));
     try {
       // Ensure dates are properly formatted
       const tournamentData = {
@@ -85,13 +85,13 @@ const Tournaments = () => {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to create tournament';
       alert(`Failed to create tournament: ${errorMessage}`);
     } finally {
-      setLoading({ ...loading, submit: false });
+      setLoading(prev => ({ ...prev, submit: false }));
     }
   };
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
-      setLoading({ ...loading, delete: id });
+      setLoading(prev => ({ ...prev, delete: id }));
       try {
         await deleteTournament(id);
         loadTournaments();
@@ -99,7 +99,7 @@ const Tournaments = () => {
         console.error('Error deleting tournament:', error);
         alert('Failed to delete tournament');
       } finally {
-        setLoading({ ...loading, delete: null });
+        setLoading(prev => ({ ...prev, delete: null }));
       }
     });
     setPendingActionType('delete');

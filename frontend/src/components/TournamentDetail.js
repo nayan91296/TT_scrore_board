@@ -150,7 +150,7 @@ const TournamentDetail = () => {
 
   const handleCreateMatch = async (e) => {
     e.preventDefault();
-    setLoading({ ...loading, createMatch: true });
+    setLoading(prev => ({ ...prev, createMatch: true }));
     try {
       await createMatch({
         tournament: id,
@@ -163,7 +163,7 @@ const TournamentDetail = () => {
       console.error('Error creating match:', error);
       alert('Failed to create match');
     } finally {
-      setLoading({ ...loading, createMatch: false });
+      setLoading(prev => ({ ...prev, createMatch: false }));
     }
   };
 
@@ -172,7 +172,7 @@ const TournamentDetail = () => {
       alert('Need at least 3 teams for semi-finals');
       return;
     }
-    setLoading({ ...loading, generateSemiFinals: true });
+    setLoading(prev => ({ ...prev, generateSemiFinals: true }));
     // Filter matches to only completed GROUP matches with scores (points table only uses group matches)
     const completedMatchesWithScores = matches.filter(m => 
       m.status === 'completed' && 
@@ -268,12 +268,12 @@ const TournamentDetail = () => {
       console.error('Error generating semi-finals:', error);
       alert(error.response?.data?.error || 'Failed to generate semi-finals');
     } finally {
-      setLoading({ ...loading, generateSemiFinals: false });
+      setLoading(prev => ({ ...prev, generateSemiFinals: false }));
     }
   };
 
   const handleUpdateSemiFinal2 = async () => {
-    setLoading({ ...loading, updateSemiFinal2: true });
+    setLoading(prev => ({ ...prev, updateSemiFinal2: true }));
     try {
       const response = await fetch(`https://tt-scrore-board.onrender.com/api/tournaments/${id}/update-semifinal2`, {
         method: 'POST',
@@ -289,12 +289,12 @@ const TournamentDetail = () => {
       console.error('Error updating semi-final 2:', error);
       alert('Failed to update semi-final 2');
     } finally {
-      setLoading({ ...loading, updateSemiFinal2: false });
+      setLoading(prev => ({ ...prev, updateSemiFinal2: false }));
     }
   };
 
   const handleGenerateFinal = async () => {
-    setLoading({ ...loading, generateFinal: true });
+    setLoading(prev => ({ ...prev, generateFinal: true }));
     try {
       const response = await generateFinal(id);
       loadData();
@@ -302,7 +302,7 @@ const TournamentDetail = () => {
       console.error('Error generating final:', error);
       alert(error.response?.data?.error || 'Failed to generate final');
     } finally {
-      setLoading({ ...loading, generateFinal: false });
+      setLoading(prev => ({ ...prev, generateFinal: false }));
     }
   };
 
@@ -322,7 +322,7 @@ const TournamentDetail = () => {
       }
     }
 
-    setLoading({ ...loading, generateGroupMatches: true });
+    setLoading(prev => ({ ...prev, generateGroupMatches: true }));
     try {
       const replace = existingGroupMatches.length > 0;
       const response = await generateGroupMatches(id, replace);
@@ -355,7 +355,7 @@ const TournamentDetail = () => {
         alert('Failed to generate group matches: ' + errorMessage);
       }
     } finally {
-      setLoading({ ...loading, generateGroupMatches: false });
+      setLoading(prev => ({ ...prev, generateGroupMatches: false }));
     }
   };
 
@@ -365,7 +365,7 @@ const TournamentDetail = () => {
         return;
       }
       
-      setLoading({ ...loading, deleteMatch: matchId });
+      setLoading(prev => ({ ...prev, deleteMatch: matchId }));
       try {
         await deleteMatch(matchId);
         await loadData(); // Reload all data to refresh team stats
@@ -374,7 +374,7 @@ const TournamentDetail = () => {
         console.error('Error deleting match:', error);
         alert('Failed to delete match: ' + (error.response?.data?.error || error.message));
       } finally {
-        setLoading({ ...loading, deleteMatch: null });
+        setLoading(prev => ({ ...prev, deleteMatch: null }));
       }
     });
     setPendingActionType('delete-match');
@@ -402,7 +402,7 @@ const TournamentDetail = () => {
       return;
     }
     
-    setLoading({ ...loading, toss: match._id });
+    setLoading(prev => ({ ...prev, toss: match._id }));
     setShowTossModal(match);
     setTossAnimating(true);
     setTossResult(null);
@@ -428,13 +428,13 @@ const TournamentDetail = () => {
         setTossAnimating(false);
         setShowTossModal(null);
       } finally {
-        setLoading({ ...loading, toss: null });
+        setLoading(prev => ({ ...prev, toss: null }));
       }
     }, 2000);
   };
 
   const handleAddScore = async (matchId) => {
-    setLoading({ ...loading, addScore: true });
+    setLoading(prev => ({ ...prev, addScore: true }));
     try {
       const response = await addScore(matchId, scoreForm);
       setShowScoreModal(null);
@@ -467,7 +467,7 @@ const TournamentDetail = () => {
       console.error('Error adding score:', error);
       alert('Failed to add score: ' + (error.response?.data?.error || error.message));
     } finally {
-      setLoading({ ...loading, addScore: false });
+      setLoading(prev => ({ ...prev, addScore: false }));
     }
   };
 
@@ -1051,7 +1051,7 @@ const TournamentDetail = () => {
                       const winner = team1Wins > team2Wins ? match.team1 : match.team2;
                       const winnerWins = team1Wins > team2Wins ? team1Wins : team2Wins;
                       
-                      setLoading({ ...loading, markComplete: match._id });
+                      setLoading(prev => ({ ...prev, markComplete: match._id }));
                       try {
                         console.log('Completing match:', {
                           matchId: match._id,
@@ -1092,7 +1092,7 @@ const TournamentDetail = () => {
                         console.error('Error completing match:', error);
                         alert('Failed to complete match: ' + (error.response?.data?.error || error.message));
                       } finally {
-                        setLoading({ ...loading, markComplete: null });
+                        setLoading(prev => ({ ...prev, markComplete: null }));
                       }
                     }}
                   >
@@ -1747,7 +1747,7 @@ const TournamentDetail = () => {
                 <button 
                   className="btn btn-secondary" 
                   onClick={async () => {
-                    setLoading({ ...loading, recalculateStats: true });
+                    setLoading(prev => ({ ...prev, recalculateStats: true }));
                     try {
                       await recalculateTeamStats(id);
                       await loadData();
@@ -1755,7 +1755,7 @@ const TournamentDetail = () => {
                       console.error('Error recalculating stats:', error);
                       alert('Failed to recalculate statistics');
                     } finally {
-                      setLoading({ ...loading, recalculateStats: false });
+                      setLoading(prev => ({ ...prev, recalculateStats: false }));
                     }
                   }}
                   disabled={loading.recalculateStats}
