@@ -20,7 +20,8 @@ const Players = () => {
   });
   const [loading, setLoading] = useState({
     submit: false,
-    delete: null // Store the ID of the item being deleted
+    delete: null, // Store the ID of the item being deleted
+    loadingPlayers: true
   });
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const Players = () => {
   }, []);
 
   const loadPlayers = async () => {
+    setLoading({ ...loading, loadingPlayers: true });
     try {
       const response = await getPlayers();
       setAllPlayers(response.data);
@@ -35,6 +37,8 @@ const Players = () => {
     } catch (error) {
       console.error('Error loading players:', error);
       alert('Failed to load players');
+    } finally {
+      setLoading({ ...loading, loadingPlayers: false });
     }
   };
 
@@ -234,7 +238,12 @@ const Players = () => {
         </div>
       )}
 
-      {allPlayers.length === 0 ? (
+      {loading.loadingPlayers ? (
+        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '15px' }}>⏳</div>
+          <div style={{ fontSize: '16px', color: '#666' }}>Loading players...</div>
+        </div>
+      ) : allPlayers.length === 0 ? (
         <div className="card">
           <p>No players yet. Add your first player!</p>
         </div>

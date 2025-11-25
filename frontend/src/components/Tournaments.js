@@ -33,7 +33,8 @@ const Tournaments = () => {
   // Loading states
   const [loading, setLoading] = useState({
     submit: false,
-    delete: null
+    delete: null,
+    loadingTournaments: true
   });
 
   useEffect(() => {
@@ -48,12 +49,15 @@ const Tournaments = () => {
 
   // Load all tournaments on mount to get accurate counts
   const loadAllTournaments = async () => {
+    setLoading({ ...loading, loadingTournaments: true });
     try {
       const response = await getTournaments();
       setTournaments(response.data);
     } catch (error) {
       console.error('Error loading tournaments:', error);
       alert('Failed to load tournaments');
+    } finally {
+      setLoading({ ...loading, loadingTournaments: false });
     }
   };
 
@@ -204,7 +208,12 @@ const Tournaments = () => {
         </div>
       </div>
 
-      {filteredTournaments.length === 0 ? (
+      {loading.loadingTournaments ? (
+        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '15px' }}>⏳</div>
+          <div style={{ fontSize: '16px', color: '#666' }}>Loading tournaments...</div>
+        </div>
+      ) : filteredTournaments.length === 0 ? (
         <div className="card">
           <p>
             {activeTab === 'history' 

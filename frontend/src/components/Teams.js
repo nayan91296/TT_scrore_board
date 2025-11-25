@@ -31,7 +31,10 @@ const Teams = () => {
   const [loading, setLoading] = useState({
     submit: false,
     delete: null,
-    generateRandom: false
+    generateRandom: false,
+    loadingTeams: true,
+    loadingTournaments: true,
+    loadingPlayers: true
   });
 
   useEffect(() => {
@@ -55,6 +58,7 @@ const Teams = () => {
   }, [selectedTournament, allTeams]);
 
   const loadTeams = async () => {
+    setLoading({ ...loading, loadingTeams: true });
     try {
       const response = await getTeams();
       setAllTeams(response.data);
@@ -62,24 +66,32 @@ const Teams = () => {
     } catch (error) {
       console.error('Error loading teams:', error);
       alert('Failed to load teams');
+    } finally {
+      setLoading({ ...loading, loadingTeams: false });
     }
   };
 
   const loadTournaments = async () => {
+    setLoading({ ...loading, loadingTournaments: true });
     try {
       const response = await getTournaments();
       setTournaments(response.data);
     } catch (error) {
       console.error('Error loading tournaments:', error);
+    } finally {
+      setLoading({ ...loading, loadingTournaments: false });
     }
   };
 
   const loadPlayers = async () => {
+    setLoading({ ...loading, loadingPlayers: true });
     try {
       const response = await getPlayers();
       setPlayers(response.data);
     } catch (error) {
       console.error('Error loading players:', error);
+    } finally {
+      setLoading({ ...loading, loadingPlayers: false });
     }
   };
 
@@ -280,7 +292,12 @@ const Teams = () => {
         </div>
       </div>
 
-      {teams.length === 0 ? (
+      {loading.loadingTeams ? (
+        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '15px' }}>⏳</div>
+          <div style={{ fontSize: '16px', color: '#666' }}>Loading teams...</div>
+        </div>
+      ) : teams.length === 0 ? (
         <div className="card">
           <p>No teams yet. Create your first team!</p>
         </div>

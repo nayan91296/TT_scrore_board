@@ -61,7 +61,10 @@ const PlayersAndTeams = () => {
     teamDelete: null,
     deleteAllTeams: null,
     generateRandom: false,
-    refreshPlayers: false
+    refreshPlayers: false,
+    loadingPlayers: true,
+    loadingTeams: true,
+    loadingTournaments: true
   });
 
   useEffect(() => {
@@ -115,6 +118,7 @@ const PlayersAndTeams = () => {
 
   // Players functions
   const loadPlayers = async () => {
+    setLoading({ ...loading, loadingPlayers: true });
     try {
       const response = await getPlayers();
       // Log to verify data structure
@@ -132,6 +136,8 @@ const PlayersAndTeams = () => {
     } catch (error) {
       console.error('Error loading players:', error);
       alert('Failed to load players');
+    } finally {
+      setLoading({ ...loading, loadingPlayers: false });
     }
   };
 
@@ -292,6 +298,7 @@ const PlayersAndTeams = () => {
 
   // Teams functions
   const loadTeams = async () => {
+    setLoading({ ...loading, loadingTeams: true });
     try {
       const response = await getTeams();
       setAllTeams(response.data);
@@ -299,15 +306,20 @@ const PlayersAndTeams = () => {
     } catch (error) {
       console.error('Error loading teams:', error);
       alert('Failed to load teams');
+    } finally {
+      setLoading({ ...loading, loadingTeams: false });
     }
   };
 
   const loadTournaments = async () => {
+    setLoading({ ...loading, loadingTournaments: true });
     try {
       const response = await getTournaments();
       setTournaments(response.data);
     } catch (error) {
       console.error('Error loading tournaments:', error);
+    } finally {
+      setLoading({ ...loading, loadingTournaments: false });
     }
   };
 
@@ -1015,7 +1027,12 @@ const PlayersAndTeams = () => {
             </div>
           )}
 
-          {allPlayers.length === 0 ? (
+          {loading.loadingPlayers ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '15px' }}>⏳</div>
+              <div style={{ fontSize: '16px', color: '#666' }}>Loading players...</div>
+            </div>
+          ) : allPlayers.length === 0 ? (
             <div className="card">
               <p>No players yet. Add your first player!</p>
             </div>
@@ -1250,7 +1267,12 @@ const PlayersAndTeams = () => {
             </div>
           </div>
 
-          {teams.length === 0 ? (
+          {loading.loadingTeams ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '15px' }}>⏳</div>
+              <div style={{ fontSize: '16px', color: '#666' }}>Loading teams...</div>
+            </div>
+          ) : teams.length === 0 ? (
             <div className="card">
               <p>No teams yet. Create your first team!</p>
             </div>

@@ -24,6 +24,7 @@ const TournamentDetail = () => {
   const [tournament, setTournament] = useState(null);
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState(null);
   const [matchForm, setMatchForm] = useState({
@@ -99,6 +100,7 @@ const TournamentDetail = () => {
   }, [matches, teams, winnerTeam]);
 
   const loadData = async () => {
+    setLoadingData(true);
     try {
       const [tournamentRes, teamsRes, matchesRes] = await Promise.all([
         getTournament(id),
@@ -141,6 +143,8 @@ const TournamentDetail = () => {
     } catch (error) {
       console.error('Error loading data:', error);
       alert('Failed to load tournament data');
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -1119,8 +1123,20 @@ const TournamentDetail = () => {
     );
   };
 
-  if (!tournament) {
-    return <div>Loading...</div>;
+  if (loadingData || !tournament) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '400px',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '24px' }}>⏳</div>
+        <div style={{ fontSize: '18px', color: '#666' }}>Loading tournament data...</div>
+      </div>
+    );
   }
 
   // Get semi-finals in the correct order (matching tournament.semiFinalMatches array)
