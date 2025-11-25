@@ -26,6 +26,13 @@ const Teams = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingActionType, setPendingActionType] = useState('');
+  
+  // Loading states
+  const [loading, setLoading] = useState({
+    submit: false,
+    delete: null,
+    generateRandom: false
+  });
 
   useEffect(() => {
     loadTeams();
@@ -82,6 +89,7 @@ const Teams = () => {
       alert('Please select a tournament and at least one player');
       return;
     }
+    setLoading({ ...loading, submit: true });
     try {
       await createTeam(formData);
       setShowModal(false);
@@ -90,6 +98,8 @@ const Teams = () => {
     } catch (error) {
       console.error('Error creating team:', error);
       alert(error.response?.data?.error || 'Failed to create team');
+    } finally {
+      setLoading({ ...loading, submit: false });
     }
   };
 
@@ -103,12 +113,15 @@ const Teams = () => {
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
+      setLoading({ ...loading, delete: id });
       try {
         await deleteTeam(id);
         loadTeams();
       } catch (error) {
         console.error('Error deleting team:', error);
         alert('Failed to delete team');
+      } finally {
+        setLoading({ ...loading, delete: null });
       }
     });
     setPendingActionType('delete');
@@ -170,6 +183,7 @@ const Teams = () => {
       return;
     }
 
+    setLoading({ ...loading, generateRandom: true });
     try {
       // Shuffle players array
       const shuffledPlayers = [...availablePlayers].sort(() => Math.random() - 0.5);
@@ -202,6 +216,8 @@ const Teams = () => {
     } catch (error) {
       console.error('Error generating random teams:', error);
       alert(error.response?.data?.error || 'Failed to generate random teams');
+    } finally {
+      setLoading({ ...loading, generateRandom: false });
     }
   };
 
@@ -389,9 +405,10 @@ const Teams = () => {
                                 <button 
                                   className="btn btn-danger" 
                                   onClick={() => handleDelete(team._id)} 
+                                  disabled={loading.delete === team._id}
                                   style={{ padding: '5px 10px', fontSize: '14px' }}
                                 >
-                                  Delete
+                                  {loading.delete === team._id ? '⏳ Deleting...' : 'Delete'}
                                 </button>
                               </td>
                             </tr>
@@ -468,8 +485,8 @@ const Teams = () => {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Create
+                <button type="submit" className="btn btn-primary" disabled={loading.submit}>
+                  {loading.submit ? '⏳ Creating...' : 'Create'}
                 </button>
               </div>
             </form>
@@ -622,8 +639,8 @@ const Teams = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Generate Teams
+                <button type="submit" className="btn btn-primary" disabled={loading.generateRandom}>
+                  {loading.generateRandom ? '⏳ Generating...' : 'Generate Teams'}
                 </button>
               </div>
             </form>

@@ -29,6 +29,12 @@ const Tournaments = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingActionType, setPendingActionType] = useState('');
+  
+  // Loading states
+  const [loading, setLoading] = useState({
+    submit: false,
+    delete: null
+  });
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -58,6 +64,7 @@ const Tournaments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading({ ...loading, submit: true });
     try {
       // Ensure dates are properly formatted
       const tournamentData = {
@@ -73,17 +80,22 @@ const Tournaments = () => {
       console.error('Error creating tournament:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to create tournament';
       alert(`Failed to create tournament: ${errorMessage}`);
+    } finally {
+      setLoading({ ...loading, submit: false });
     }
   };
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
+      setLoading({ ...loading, delete: id });
       try {
         await deleteTournament(id);
         loadTournaments();
       } catch (error) {
         console.error('Error deleting tournament:', error);
         alert('Failed to delete tournament');
+      } finally {
+        setLoading({ ...loading, delete: null });
       }
     });
     setPendingActionType('delete');
@@ -562,8 +574,13 @@ const Tournaments = () => {
                         View
                       </Link>
                       {tournament.status !== 'completed' && (
-                        <button className="btn btn-danger" onClick={() => handleDelete(tournament._id)} style={{ padding: windowWidth < 480 ? '4px 8px' : '5px 10px', fontSize: windowWidth < 480 ? '12px' : '14px', whiteSpace: 'nowrap' }}>
-                          Delete
+                        <button 
+                          className="btn btn-danger" 
+                          onClick={() => handleDelete(tournament._id)} 
+                          disabled={loading.delete === tournament._id}
+                          style={{ padding: windowWidth < 480 ? '4px 8px' : '5px 10px', fontSize: windowWidth < 480 ? '12px' : '14px', whiteSpace: 'nowrap' }}
+                        >
+                          {loading.delete === tournament._id ? '⏳ Deleting...' : 'Delete'}
                         </button>
                       )}
                     </div>
@@ -640,8 +657,8 @@ const Tournaments = () => {
                 }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Create
+                <button type="submit" className="btn btn-primary" disabled={loading.submit}>
+                  {loading.submit ? '⏳ Creating...' : 'Create'}
                 </button>
               </div>
             </form>

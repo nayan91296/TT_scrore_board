@@ -52,6 +52,17 @@ const PlayersAndTeams = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingActionType, setPendingActionType] = useState('');
+  
+  // Loading states
+  const [loading, setLoading] = useState({
+    playerSubmit: false,
+    playerDelete: null,
+    teamSubmit: false,
+    teamDelete: null,
+    deleteAllTeams: null,
+    generateRandom: false,
+    refreshPlayers: false
+  });
 
   useEffect(() => {
     loadPlayers();
@@ -210,6 +221,7 @@ const PlayersAndTeams = () => {
 
   const handlePlayerSubmit = async (e) => {
     e.preventDefault();
+    setLoading({ ...loading, playerSubmit: true });
     try {
       if (editingPlayer) {
         await updatePlayer(editingPlayer._id, playerFormData);
@@ -223,6 +235,8 @@ const PlayersAndTeams = () => {
     } catch (error) {
       console.error('Error saving player:', error);
       alert('Failed to save player');
+    } finally {
+      setLoading({ ...loading, playerSubmit: false });
     }
   };
 
@@ -240,12 +254,15 @@ const PlayersAndTeams = () => {
 
   const handlePlayerDelete = (id) => {
     setPendingAction(() => async () => {
+      setLoading({ ...loading, playerDelete: id });
       try {
         await deletePlayer(id);
         loadPlayers();
       } catch (error) {
         console.error('Error deleting player:', error);
         alert('Failed to delete player');
+      } finally {
+        setLoading({ ...loading, playerDelete: null });
       }
     });
     setPendingActionType('delete-player');
@@ -300,6 +317,7 @@ const PlayersAndTeams = () => {
       alert('Please select a tournament and at least one player');
       return;
     }
+    setLoading({ ...loading, teamSubmit: true });
     try {
       await createTeam(teamFormData);
       setShowTeamModal(false);
@@ -308,6 +326,8 @@ const PlayersAndTeams = () => {
     } catch (error) {
       console.error('Error creating team:', error);
       alert(error.response?.data?.error || 'Failed to create team');
+    } finally {
+      setLoading({ ...loading, teamSubmit: false });
     }
   };
 
@@ -331,6 +351,7 @@ const PlayersAndTeams = () => {
         return;
       }
       
+      setLoading({ ...loading, teamDelete: id });
       try {
         await deleteTeam(id);
         loadTeams();
@@ -338,6 +359,8 @@ const PlayersAndTeams = () => {
       } catch (error) {
         console.error('Error deleting team:', error);
         alert('Failed to delete team: ' + (error.response?.data?.error || error.message));
+      } finally {
+        setLoading({ ...loading, teamDelete: null });
       }
     });
     setPendingActionType('delete-team');
@@ -384,6 +407,7 @@ const PlayersAndTeams = () => {
         return;
       }
       
+      setLoading({ ...loading, deleteAllTeams: tournamentId });
       try {
         // Delete all teams for this tournament
         const deletePromises = teams.map(team => deleteTeam(team._id));
@@ -393,6 +417,8 @@ const PlayersAndTeams = () => {
       } catch (error) {
         console.error('Error deleting teams:', error);
         alert('Failed to delete teams: ' + (error.response?.data?.error || error.message));
+      } finally {
+        setLoading({ ...loading, deleteAllTeams: null });
       }
     });
     setPendingActionType('delete-all-teams');
@@ -438,6 +464,7 @@ const PlayersAndTeams = () => {
       return;
     }
 
+    setLoading({ ...loading, generateRandom: true });
     try {
       const shuffledPlayers = [...availablePlayers].sort(() => Math.random() - 0.5);
       
@@ -467,6 +494,8 @@ const PlayersAndTeams = () => {
     } catch (error) {
       console.error('Error generating random teams:', error);
       alert(error.response?.data?.error || 'Failed to generate random teams');
+    } finally {
+      setLoading({ ...loading, generateRandom: false });
     }
   };
 
@@ -668,6 +697,7 @@ const PlayersAndTeams = () => {
                   e.stopPropagation();
                   handleDeleteAllTeams(tournamentId, tournamentData.teams, tournamentData.tournament.status);
                 }}
+                disabled={loading.deleteAllTeams === tournamentId}
                 style={{
                   padding: '4px 10px',
                   fontSize: '11px',
@@ -683,7 +713,7 @@ const PlayersAndTeams = () => {
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(220, 53, 69, 0.9)'}
                 title={`Delete all ${tournamentData.teams.length} team(s) from this tournament`}
               >
-                🗑️ Delete All
+                {loading.deleteAllTeams === tournamentId ? '⏳ Deleting...' : '🗑️ Delete All'}
               </button>
             )}
           </div>
@@ -691,8 +721,16 @@ const PlayersAndTeams = () => {
 
         {/* Collapsible Teams Table */}
         {!isCollapsed && (
-          <div style={{ background: '#fff', padding: '12px' }}>
-            <div className="table-responsive" style={{ overflowX: 'auto' }}>
+          <div style={{ background: '#fff', padding: '12px', width: '100%', overflow: 'hidden' }}>
+            <div className="table-responsive" style={{ 
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              width: '100%',
+              maxWidth: '100%',
+              display: 'block',
+              margin: windowWidth < 768 ? '0 -12px' : '0',
+              padding: windowWidth < 768 ? '0 12px' : '0'
+            }}>
               <table className="table" style={{ margin: 0, background: 'white', minWidth: windowWidth < 768 ? '600px' : '100%', fontSize: windowWidth < 480 ? '12px' : '13px' }}>
                 <thead>
                   <tr style={{ background: '#f8f9fa' }}>
@@ -760,9 +798,10 @@ const PlayersAndTeams = () => {
                               <button 
                                 className="btn btn-danger" 
                                 onClick={() => handleTeamDelete(team._id, tournamentData.tournament.status)} 
+                                disabled={loading.teamDelete === team._id}
                                 style={{ padding: '4px 8px', fontSize: '11px' }}
                               >
-                                Delete
+                                {loading.teamDelete === team._id ? '⏳ Deleting...' : 'Delete'}
                               </button>
                             )}
                             {tournamentData.tournament && tournamentData.tournament.status === 'completed' && (
@@ -872,16 +911,18 @@ const PlayersAndTeams = () => {
   ];
 
   return (
-    <div>
+    <div style={{ width: '100%', overflowX: 'hidden' }}>
       {/* Two Column Layout: Players (Left) and Teams (Right) */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: windowWidth < 768 ? '1fr' : '1fr 1fr', 
         gap: windowWidth < 768 ? '15px' : '20px',
-        alignItems: 'start'
+        alignItems: 'start',
+        width: '100%',
+        maxWidth: '100%'
       }}>
         {/* Left Column: Players */}
-        <div>
+        <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -894,21 +935,20 @@ const PlayersAndTeams = () => {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button 
                 className="btn btn-secondary" 
-                onClick={(e) => {
-                  loadPlayers();
-                  // Show a brief feedback
-                  const btn = e.target;
-                  const originalText = btn.textContent;
-                  btn.textContent = '✓ Refreshed';
-                  btn.disabled = true;
-                  setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                  }, 1500);
+                onClick={async (e) => {
+                  setLoading({ ...loading, refreshPlayers: true });
+                  try {
+                    await loadPlayers();
+                  } catch (error) {
+                    console.error('Error refreshing players:', error);
+                  } finally {
+                    setLoading({ ...loading, refreshPlayers: false });
+                  }
                 }} 
+                disabled={loading.refreshPlayers}
                 style={{ padding: windowWidth < 480 ? '6px 12px' : '8px 16px', fontSize: windowWidth < 480 ? '12px' : '14px', whiteSpace: 'nowrap' }}
               >
-                🔄 Refresh
+                {loading.refreshPlayers ? '⏳ Refreshing...' : '🔄 Refresh'}
               </button>
               <button className="btn btn-primary" onClick={() => setShowPlayerModal(true)} style={{ padding: windowWidth < 480 ? '6px 12px' : '8px 16px', fontSize: windowWidth < 480 ? '12px' : '14px', whiteSpace: 'nowrap' }}>
                 + Add Player
@@ -984,9 +1024,17 @@ const PlayersAndTeams = () => {
               <p>No players found matching your search.</p>
             </div>
           ) : (
-            <div className="card" style={{ padding: windowWidth < 480 ? '15px' : '20px' }}>
-              <div className="table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table className="table" style={{ minWidth: windowWidth < 768 ? '900px' : '100%', fontSize: windowWidth < 480 ? '11px' : '14px' }}>
+            <div className="card" style={{ padding: windowWidth < 480 ? '15px' : '20px', width: '100%', overflow: 'hidden' }}>
+              <div className="table-responsive" style={{ 
+                overflowX: 'auto', 
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
+                maxWidth: '100%',
+                display: 'block',
+                margin: windowWidth < 768 ? '0 -15px' : '0',
+                padding: windowWidth < 768 ? '0 15px' : '0'
+              }}>
+                <table className="table" style={{ minWidth: windowWidth < 768 ? '900px' : '100%', fontSize: windowWidth < 480 ? '11px' : '14px', margin: 0 }}>
                   <thead>
                     <tr>
                       <th style={{ width: '50px', textAlign: 'center' }}>Rank</th>
@@ -1088,8 +1136,13 @@ const PlayersAndTeams = () => {
                           <button className="btn btn-primary" onClick={() => handlePlayerEdit(player)} style={{ marginRight: '5px', padding: '5px 10px', fontSize: windowWidth < 480 ? '11px' : '14px' }}>
                             Edit
                           </button>
-                          <button className="btn btn-danger" onClick={() => handlePlayerDelete(player._id)} style={{ padding: '5px 10px', fontSize: windowWidth < 480 ? '11px' : '14px' }}>
-                            Delete
+                          <button 
+                            className="btn btn-danger" 
+                            onClick={() => handlePlayerDelete(player._id)} 
+                            disabled={loading.playerDelete === player._id}
+                            style={{ padding: '5px 10px', fontSize: windowWidth < 480 ? '11px' : '14px' }}
+                          >
+                            {loading.playerDelete === player._id ? '⏳ Deleting...' : 'Delete'}
                           </button>
                         </td>
                       </tr>
@@ -1124,8 +1177,8 @@ const PlayersAndTeams = () => {
                     <button type="button" className="btn btn-secondary" onClick={closePlayerModal}>
                       Cancel
                     </button>
-                    <button type="submit" className="btn btn-primary">
-                      {editingPlayer ? 'Update' : 'Create'}
+                    <button type="submit" className="btn btn-primary" disabled={loading.playerSubmit}>
+                      {loading.playerSubmit ? '⏳ Loading...' : (editingPlayer ? 'Update' : 'Create')}
                     </button>
                   </div>
                 </form>
@@ -1135,7 +1188,7 @@ const PlayersAndTeams = () => {
         </div>
 
         {/* Right Column: Teams */}
-        <div>
+        <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
@@ -1370,8 +1423,8 @@ const PlayersAndTeams = () => {
                     <button type="button" className="btn btn-secondary" onClick={() => setShowTeamModal(false)}>
                       Cancel
                     </button>
-                    <button type="submit" className="btn btn-primary">
-                      Create
+                    <button type="submit" className="btn btn-primary" disabled={loading.teamSubmit}>
+                      {loading.teamSubmit ? '⏳ Creating...' : 'Create'}
                     </button>
                   </div>
                 </form>
@@ -1525,8 +1578,8 @@ const PlayersAndTeams = () => {
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="btn btn-primary">
-                      Generate Teams
+                    <button type="submit" className="btn btn-primary" disabled={loading.generateRandom}>
+                      {loading.generateRandom ? '⏳ Generating...' : 'Generate Teams'}
                     </button>
                   </div>
                 </form>

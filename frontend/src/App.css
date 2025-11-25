@@ -3,6 +3,24 @@
   background-color: #f5f5f5;
 }
 
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: auto;
+  z-index: 1001;
+}
+
+.mobile-menu-toggle:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
 /* Responsive Design */
 @media (max-width: 992px) {
   .navbar h1 {
@@ -23,6 +41,7 @@
   .navbar .container {
     padding: 12px 15px;
     gap: 15px;
+    position: relative;
   }
   
   /* Adjust content padding for fixed navbar on mobile */
@@ -37,17 +56,45 @@
     flex-shrink: 0;
   }
 
+  /* Mobile Menu Toggle */
+  .mobile-menu-toggle {
+    display: block;
+  }
+
   .navbar nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: flex-end;
-    margin-left: auto;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background-color: #343a40;
+    flex-direction: column;
+    padding: 15px;
+    gap: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 999;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .navbar nav.mobile-menu-open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
   }
 
   .navbar nav a {
-    padding: 6px 12px;
-    font-size: 14px;
+    padding: 12px 16px;
+    font-size: 15px;
+    width: 100%;
+    text-align: left;
+    border-radius: 4px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   .card {
@@ -70,66 +117,101 @@
   }
 
   .btn {
-    padding: 8px 16px;
+    padding: 10px 16px;
     font-size: 14px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .modal-content {
     width: 95%;
     padding: 20px;
-    margin: 10% auto;
+    margin: 5% auto;
+    max-height: 90vh;
+    overflow-y: auto;
   }
 
   /* Responsive tables - make scrollable on mobile */
   .table-responsive {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+    display: block;
+    position: relative;
   }
 
   .table-responsive table {
     min-width: 600px;
+    margin: 0;
+  }
+  
+  /* Ensure scrollbar is visible on mobile */
+  .table-responsive::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  
+  .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+  }
+
+  /* Improve form inputs on mobile */
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
   }
 }
 
 @media (max-width: 480px) {
   .container {
-    padding: 5px;
+    padding: 8px;
   }
 
   .navbar .container {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 10px 15px;
+    padding: 10px 12px;
+    gap: 10px;
   }
   
   /* Adjust content padding for fixed navbar on small mobile */
   .App > .container {
-    padding-top: 120px !important;
+    padding-top: 100px !important;
   }
 
   .navbar h1 {
     font-size: 16px;
-    width: 100%;
+    width: auto;
+    flex: 1;
   }
 
   .navbar nav {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 5px;
+    top: 50px;
+    padding: 12px;
   }
 
   .navbar nav a {
-    font-size: 13px;
-    padding: 6px 10px;
+    font-size: 14px;
+    padding: 10px 14px;
   }
 
   .card {
-    padding: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
   }
 
   .card h2 {
     font-size: 18px;
+    margin-bottom: 12px;
   }
 
   .table th,
@@ -139,13 +221,54 @@
   }
 
   .btn {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
+    min-height: 44px;
   }
 
   .modal-content {
     width: 98%;
     padding: 15px;
+    margin: 2% auto;
+    max-height: 95vh;
+  }
+
+  .modal-header h2 {
+    font-size: 18px;
+  }
+
+  .close {
+    font-size: 24px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Extra small devices */
+@media (max-width: 360px) {
+  .navbar h1 {
+    font-size: 14px;
+  }
+
+  .navbar nav a {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .card {
+    padding: 10px;
+  }
+
+  .card h2 {
+    font-size: 16px;
+  }
+
+  .btn {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 }
 

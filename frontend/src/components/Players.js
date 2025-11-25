@@ -18,6 +18,10 @@ const Players = () => {
     phone: '',
     rating: 0
   });
+  const [loading, setLoading] = useState({
+    submit: false,
+    delete: null // Store the ID of the item being deleted
+  });
 
   useEffect(() => {
     loadPlayers();
@@ -84,6 +88,7 @@ const Players = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading({ ...loading, submit: true });
     try {
       if (editingPlayer) {
         await updatePlayer(editingPlayer._id, formData);
@@ -97,6 +102,8 @@ const Players = () => {
     } catch (error) {
       console.error('Error saving player:', error);
       alert('Failed to save player');
+    } finally {
+      setLoading({ ...loading, submit: false });
     }
   };
 
@@ -117,12 +124,15 @@ const Players = () => {
 
   const handleDelete = (id) => {
     setPendingAction(() => async () => {
+      setLoading({ ...loading, delete: id });
       try {
         await deletePlayer(id);
         loadPlayers();
       } catch (error) {
         console.error('Error deleting player:', error);
         alert('Failed to delete player');
+      } finally {
+        setLoading({ ...loading, delete: null });
       }
     });
     setPendingActionType('delete');
@@ -316,8 +326,13 @@ const Players = () => {
                     <button className="btn btn-primary" onClick={() => handleEdit(player)} style={{ marginRight: '5px', padding: '5px 10px', fontSize: '14px' }}>
                       Edit
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDelete(player._id)} style={{ padding: '5px 10px', fontSize: '14px' }}>
-                      Delete
+                    <button 
+                      className="btn btn-danger" 
+                      onClick={() => handleDelete(player._id)} 
+                      disabled={loading.delete === player._id}
+                      style={{ padding: '5px 10px', fontSize: '14px' }}
+                    >
+                      {loading.delete === player._id ? '⏳ Deleting...' : 'Delete'}
                     </button>
                   </td>
                 </tr>
@@ -375,8 +390,8 @@ const Players = () => {
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingPlayer ? 'Update' : 'Create'}
+                <button type="submit" className="btn btn-primary" disabled={loading.submit}>
+                  {loading.submit ? '⏳ Loading...' : (editingPlayer ? 'Update' : 'Create')}
                 </button>
               </div>
             </form>

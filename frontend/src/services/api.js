@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Get API URL from environment variable, fallback to default
-const API_URL = process.env.REACT_APP_API_URL || 'http://https://tt-scrore-board.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://tt-scrore-board.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,

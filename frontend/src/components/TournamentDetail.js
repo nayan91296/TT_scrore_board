@@ -42,6 +42,21 @@ const TournamentDetail = () => {
   const [pendingAction, setPendingAction] = useState(null);
   const [pendingActionType, setPendingActionType] = useState('');
   
+  // Loading states
+  const [loading, setLoading] = useState({
+    createMatch: false,
+    deleteMatch: null,
+    generateGroupMatches: false,
+    generateSemiFinals: false,
+    updateSemiFinal2: false,
+    generateFinal: false,
+    toss: null,
+    addScore: false,
+    markComplete: null,
+    recalculateStats: false,
+    updateStatus: false
+  });
+  
   // Winner celebration state
   const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
   const [winnerTeam, setWinnerTeam] = useState(null);
@@ -131,6 +146,7 @@ const TournamentDetail = () => {
 
   const handleCreateMatch = async (e) => {
     e.preventDefault();
+    setLoading({ ...loading, createMatch: true });
     try {
       await createMatch({
         tournament: id,
@@ -142,6 +158,8 @@ const TournamentDetail = () => {
     } catch (error) {
       console.error('Error creating match:', error);
       alert('Failed to create match');
+    } finally {
+      setLoading({ ...loading, createMatch: false });
     }
   };
 
@@ -150,6 +168,7 @@ const TournamentDetail = () => {
       alert('Need at least 3 teams for semi-finals');
       return;
     }
+    setLoading({ ...loading, generateSemiFinals: true });
     // Filter matches to only completed GROUP matches with scores (points table only uses group matches)
     const completedMatchesWithScores = matches.filter(m => 
       m.status === 'completed' && 
@@ -244,12 +263,15 @@ const TournamentDetail = () => {
     } catch (error) {
       console.error('Error generating semi-finals:', error);
       alert(error.response?.data?.error || 'Failed to generate semi-finals');
+    } finally {
+      setLoading({ ...loading, generateSemiFinals: false });
     }
   };
 
   const handleUpdateSemiFinal2 = async () => {
+    setLoading({ ...loading, updateSemiFinal2: true });
     try {
-      const response = await fetch(`http://https://tt-scrore-board.onrender.com/api/tournaments/${id}/update-semifinal2`, {
+      const response = await fetch(`https://tt-scrore-board.onrender.com/api/tournaments/${id}/update-semifinal2`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -262,16 +284,21 @@ const TournamentDetail = () => {
     } catch (error) {
       console.error('Error updating semi-final 2:', error);
       alert('Failed to update semi-final 2');
+    } finally {
+      setLoading({ ...loading, updateSemiFinal2: false });
     }
   };
 
   const handleGenerateFinal = async () => {
+    setLoading({ ...loading, generateFinal: true });
     try {
       const response = await generateFinal(id);
       loadData();
     } catch (error) {
       console.error('Error generating final:', error);
       alert(error.response?.data?.error || 'Failed to generate final');
+    } finally {
+      setLoading({ ...loading, generateFinal: false });
     }
   };
 
@@ -291,6 +318,7 @@ const TournamentDetail = () => {
       }
     }
 
+    setLoading({ ...loading, generateGroupMatches: true });
     try {
       const replace = existingGroupMatches.length > 0;
       const response = await generateGroupMatches(id, replace);
@@ -322,6 +350,8 @@ const TournamentDetail = () => {
       } else {
         alert('Failed to generate group matches: ' + errorMessage);
       }
+    } finally {
+      setLoading({ ...loading, generateGroupMatches: false });
     }
   };
 
@@ -331,6 +361,7 @@ const TournamentDetail = () => {
         return;
       }
       
+      setLoading({ ...loading, deleteMatch: matchId });
       try {
         await deleteMatch(matchId);
         await loadData(); // Reload all data to refresh team stats
@@ -338,6 +369,8 @@ const TournamentDetail = () => {
       } catch (error) {
         console.error('Error deleting match:', error);
         alert('Failed to delete match: ' + (error.response?.data?.error || error.message));
+      } finally {
+        setLoading({ ...loading, deleteMatch: null });
       }
     });
     setPendingActionType('delete-match');
@@ -365,6 +398,7 @@ const TournamentDetail = () => {
       return;
     }
     
+    setLoading({ ...loading, toss: match._id });
     setShowTossModal(match);
     setTossAnimating(true);
     setTossResult(null);
@@ -389,11 +423,14 @@ const TournamentDetail = () => {
         alert('Failed to perform toss: ' + (error.response?.data?.error || error.message));
         setTossAnimating(false);
         setShowTossModal(null);
+      } finally {
+        setLoading({ ...loading, toss: null });
       }
     }, 2000);
   };
 
   const handleAddScore = async (matchId) => {
+    setLoading({ ...loading, addScore: true });
     try {
       const response = await addScore(matchId, scoreForm);
       setShowScoreModal(null);
@@ -425,6 +462,8 @@ const TournamentDetail = () => {
     } catch (error) {
       console.error('Error adding score:', error);
       alert('Failed to add score: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading({ ...loading, addScore: false });
     }
   };
 
@@ -680,36 +719,49 @@ const TournamentDetail = () => {
     const team2Players = hasTeam2 ? getPlayerNames(match.team2) : [];
 
     return (
-      <div className={`match-card ${getMatchTypeClass(match.matchType)}`} style={{ marginBottom: '15px' }}>
+      <div className={`match-card ${getMatchTypeClass(match.matchType)}`} style={{ marginBottom: '15px', width: '100%', maxWidth: '100%' }}>
         {/* Cricket Style Scorecard Header */}
         <div style={{ 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
-          padding: '15px',
+          padding: windowWidth < 480 ? '12px' : '15px',
           borderRadius: '8px 8px 0 0',
           marginBottom: '0'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '5px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: windowWidth < 480 ? 'flex-start' : 'center',
+            flexWrap: 'wrap',
+            gap: '10px'
+          }}>
+            <div style={{ flex: 1, minWidth: windowWidth < 480 ? '100%' : 'auto' }}>
+              <div style={{ fontSize: windowWidth < 480 ? '11px' : '14px', opacity: 0.9, marginBottom: '5px' }}>
                 {match.matchType === 'final' ? '🏆 FINAL' : 
                  match.matchType === 'semifinal' ? '🥈 SEMI-FINAL' : 
                  '📋 GROUP MATCH'}
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+              <div style={{ fontSize: windowWidth < 480 ? '16px' : '20px', fontWeight: 'bold', wordBreak: 'break-word' }}>
                 {match.team1?.name} {hasTeam2 ? 'vs' : 'vs (TBD)'} {match.team2?.name || ''}
               </div>
               {/* Player Names */}
               {(team1Players.length > 0 || team2Players.length > 0) && (
-                <div style={{ fontSize: '12px', opacity: 0.85, marginTop: '8px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ 
+                  fontSize: windowWidth < 480 ? '10px' : '12px', 
+                  opacity: 0.85, 
+                  marginTop: '8px', 
+                  display: 'flex', 
+                  gap: windowWidth < 480 ? '8px' : '15px', 
+                  flexWrap: 'wrap' 
+                }}>
                   {team1Players.length > 0 && (
-                    <div>
+                    <div style={{ wordBreak: 'break-word' }}>
                       <span style={{ fontWeight: '600' }}>{match.team1?.name}:</span>{' '}
                       {team1Players.join(', ')}
                     </div>
                   )}
                   {hasTeam2 && team2Players.length > 0 && (
-                    <div>
+                    <div style={{ wordBreak: 'break-word' }}>
                       <span style={{ fontWeight: '600' }}>{match.team2?.name}:</span>{' '}
                       {team2Players.join(', ')}
                     </div>
@@ -717,10 +769,10 @@ const TournamentDetail = () => {
                 </div>
               )}
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: windowWidth < 480 ? 'left' : 'right', flexShrink: 0 }}>
               {getMatchStatusBadge(match.status)}
               {isCompleted && winner && (
-                <div style={{ marginTop: '5px', fontSize: '12px', opacity: 0.9 }}>
+                <div style={{ marginTop: '5px', fontSize: windowWidth < 480 ? '10px' : '12px', opacity: 0.9, wordBreak: 'break-word' }}>
                   Winner: {winner.name}
                 </div>
               )}
@@ -729,12 +781,12 @@ const TournamentDetail = () => {
         </div>
 
         {/* Cricket Style Scorecard Body */}
-        <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '0 0 8px 8px' }}>
+        <div style={{ background: '#f8f9fa', padding: windowWidth < 480 ? '12px' : '15px', borderRadius: '0 0 8px 8px', width: '100%', overflow: 'hidden' }}>
           {/* Cricket Style Sets Table */}
           {sortedScores.length > 0 ? (
-            <div style={{ marginBottom: '15px' }}>
+            <div style={{ marginBottom: '15px', width: '100%' }}>
               <div style={{ 
-                fontSize: '14px', 
+                fontSize: windowWidth < 480 ? '12px' : '14px', 
                 fontWeight: 'bold', 
                 marginBottom: '10px',
                 color: '#333',
@@ -744,25 +796,36 @@ const TournamentDetail = () => {
                 Sets Breakdown
               </div>
               
-              {/* Cricket Style Table */}
-              <table style={{ 
-                width: '100%', 
-                borderCollapse: 'collapse',
-                background: 'white',
-                borderRadius: '5px',
-                overflow: 'hidden',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              {/* Cricket Style Table - Responsive wrapper */}
+              <div className="table-responsive" style={{ 
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
+                maxWidth: '100%',
+                display: 'block',
+                margin: windowWidth < 480 ? '0 -12px' : '0',
+                padding: windowWidth < 480 ? '0 12px' : '0'
               }}>
-                <thead>
-                  <tr style={{ background: '#343a40', color: 'white' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600' }}>Set</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>{match.team1?.name}</th>
-                    {hasTeam2 && (
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>{match.team2?.name}</th>
-                    )}
-                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '13px', fontWeight: '600' }}>Result</th>
-                  </tr>
-                </thead>
+                <table style={{ 
+                  width: '100%', 
+                  minWidth: windowWidth < 480 ? '500px' : '100%',
+                  borderCollapse: 'collapse',
+                  background: 'white',
+                  borderRadius: '5px',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  margin: 0
+                }}>
+                  <thead>
+                    <tr style={{ background: '#343a40', color: 'white' }}>
+                      <th style={{ padding: windowWidth < 480 ? '8px' : '12px', textAlign: 'left', fontSize: windowWidth < 480 ? '11px' : '13px', fontWeight: '600' }}>Set</th>
+                      <th style={{ padding: windowWidth < 480 ? '8px' : '12px', textAlign: 'center', fontSize: windowWidth < 480 ? '11px' : '13px', fontWeight: '600', wordBreak: 'break-word' }}>{match.team1?.name}</th>
+                      {hasTeam2 && (
+                        <th style={{ padding: windowWidth < 480 ? '8px' : '12px', textAlign: 'center', fontSize: windowWidth < 480 ? '11px' : '13px', fontWeight: '600', wordBreak: 'break-word' }}>{match.team2?.name}</th>
+                      )}
+                      <th style={{ padding: windowWidth < 480 ? '8px' : '12px', textAlign: 'center', fontSize: windowWidth < 480 ? '11px' : '13px', fontWeight: '600' }}>Result</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {sortedScores.map((score, idx) => {
                     const team1Score = parseInt(score.team1Score) || 0;
@@ -780,19 +843,19 @@ const TournamentDetail = () => {
                         onMouseEnter={(e) => e.currentTarget.style.background = team1Won ? '#e8f5e9' : team2Won ? '#ffebee' : '#e9ecef'}
                         onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? '#ffffff' : '#f8f9fa'}
                       >
-                        <td style={{ padding: '12px', fontWeight: 'bold', color: '#495057', fontSize: '14px' }}>
+                        <td style={{ padding: windowWidth < 480 ? '8px' : '12px', fontWeight: 'bold', color: '#495057', fontSize: windowWidth < 480 ? '12px' : '14px' }}>
                           Set {score.setNumber}
                         </td>
                         <td style={{ 
-                          padding: '12px', 
+                          padding: windowWidth < 480 ? '8px' : '12px', 
                           textAlign: 'center',
                           fontWeight: team1Won ? 'bold' : 'normal',
                           color: team1Won ? '#28a745' : '#495057',
-                          fontSize: '16px'
+                          fontSize: windowWidth < 480 ? '14px' : '16px'
                         }}>
                           <span style={{ 
                             display: 'inline-block',
-                            padding: '4px 8px',
+                            padding: windowWidth < 480 ? '3px 6px' : '4px 8px',
                             borderRadius: '4px',
                             background: team1Won ? '#d4edda' : 'transparent'
                           }}>
@@ -802,15 +865,15 @@ const TournamentDetail = () => {
                         </td>
                         {hasTeam2 && (
                           <td style={{ 
-                            padding: '12px', 
+                            padding: windowWidth < 480 ? '8px' : '12px', 
                             textAlign: 'center',
                             fontWeight: team2Won ? 'bold' : 'normal',
                             color: team2Won ? '#28a745' : '#495057',
-                            fontSize: '16px'
+                            fontSize: windowWidth < 480 ? '14px' : '16px'
                           }}>
                             <span style={{ 
                               display: 'inline-block',
-                              padding: '4px 8px',
+                              padding: windowWidth < 480 ? '3px 6px' : '4px 8px',
                               borderRadius: '4px',
                               background: team2Won ? '#d4edda' : 'transparent'
                             }}>
@@ -819,7 +882,7 @@ const TournamentDetail = () => {
                             </span>
                           </td>
                         )}
-                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px' }}>
+                        <td style={{ padding: windowWidth < 480 ? '8px' : '12px', textAlign: 'center', fontSize: windowWidth < 480 ? '11px' : '13px', wordBreak: 'break-word' }}>
                           {team1Won ? (
                             <span style={{ 
                               color: '#28a745', 
@@ -851,24 +914,24 @@ const TournamentDetail = () => {
                     fontWeight: 'bold',
                     borderTop: '3px solid #495057'
                   }}>
-                    <td style={{ padding: '14px', fontSize: '14px' }}>Total</td>
+                    <td style={{ padding: windowWidth < 480 ? '10px' : '14px', fontSize: windowWidth < 480 ? '12px' : '14px' }}>Total</td>
                     <td style={{ 
-                      padding: '14px', 
+                      padding: windowWidth < 480 ? '10px' : '14px', 
                       textAlign: 'center',
-                      fontSize: '18px'
+                      fontSize: windowWidth < 480 ? '16px' : '18px'
                     }}>
                       {team1Wins} sets
                     </td>
                     {hasTeam2 && (
                       <td style={{ 
-                        padding: '14px', 
+                        padding: windowWidth < 480 ? '10px' : '14px', 
                         textAlign: 'center',
-                        fontSize: '18px'
+                        fontSize: windowWidth < 480 ? '16px' : '18px'
                       }}>
                         {team2Wins} sets
                       </td>
                     )}
-                    <td style={{ padding: '14px', textAlign: 'center', fontSize: '14px' }}>
+                    <td style={{ padding: windowWidth < 480 ? '10px' : '14px', textAlign: 'center', fontSize: windowWidth < 480 ? '12px' : '14px', wordBreak: 'break-word' }}>
                       {isCompleted && winner ? (
                         <span style={{ 
                           background: 'rgba(255,255,255,0.2)',
@@ -887,16 +950,18 @@ const TournamentDetail = () => {
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           ) : (
             <div style={{ 
-              padding: '20px', 
+              padding: windowWidth < 480 ? '15px' : '20px', 
               textAlign: 'center',
               color: '#999',
               fontStyle: 'italic',
               background: 'white',
               borderRadius: '5px',
-              border: '1px dashed #dee2e6'
+              border: '1px dashed #dee2e6',
+              fontSize: windowWidth < 480 ? '12px' : '14px'
             }}>
               No scores added yet. Click "Add Score" to start recording.
             </div>
@@ -906,19 +971,19 @@ const TournamentDetail = () => {
           {match.tossWinner && (
             <div style={{ 
               marginTop: '10px', 
-              padding: '10px', 
+              padding: windowWidth < 480 ? '8px' : '10px', 
               background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
               borderRadius: '5px',
               border: '2px solid #ffc107',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: windowWidth < 480 ? '8px' : '10px',
               flexWrap: 'wrap'
             }}>
-              <span style={{ fontSize: '20px' }}>🪙</span>
-              <div style={{ flex: 1 }}>
-                <strong style={{ fontSize: '14px', color: '#333' }}>Toss Winner:</strong>
-                <div style={{ fontSize: '15px', color: '#555', marginTop: '2px', fontWeight: 'bold' }}>
+              <span style={{ fontSize: windowWidth < 480 ? '16px' : '20px' }}>🪙</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ fontSize: windowWidth < 480 ? '12px' : '14px', color: '#333' }}>Toss Winner:</strong>
+                <div style={{ fontSize: windowWidth < 480 ? '13px' : '15px', color: '#555', marginTop: '2px', fontWeight: 'bold', wordBreak: 'break-word' }}>
                   {match.tossWinner?.name || 'Unknown'}
                 </div>
               </div>
@@ -926,29 +991,53 @@ const TournamentDetail = () => {
           )}
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: windowWidth < 480 ? '6px' : '10px', 
+            marginTop: '10px', 
+            flexWrap: 'wrap',
+            width: '100%'
+          }}>
             {match.status !== 'completed' && hasTeam2 && (
               <>
                 {!match.tossWinner && (
                   <button 
                     className="btn btn-warning" 
                     onClick={() => handleToss(match)}
+                    disabled={loading.toss === match._id}
                     style={{ 
                       background: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
                       color: '#333',
                       fontWeight: 'bold',
-                      border: '2px solid #ffc107'
+                      border: '2px solid #ffc107',
+                      padding: windowWidth < 480 ? '8px 12px' : '10px 16px',
+                      fontSize: windowWidth < 480 ? '12px' : '14px',
+                      whiteSpace: 'nowrap'
                     }}
                   >
-                    🪙 Toss
+                    {loading.toss === match._id ? '⏳ Tossing...' : '🪙 Toss'}
                   </button>
                 )}
-                <button className="btn btn-primary" onClick={() => openScoreModal(match)}>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => openScoreModal(match)}
+                  style={{
+                    padding: windowWidth < 480 ? '8px 12px' : '10px 16px',
+                    fontSize: windowWidth < 480 ? '12px' : '14px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
                   Add Score
                 </button>
                 {match.scores && match.scores.length > 0 && (
                   <button 
                     className="btn btn-success" 
+                    disabled={loading.markComplete === match._id}
+                    style={{
+                      padding: windowWidth < 480 ? '8px 12px' : '10px 16px',
+                      fontSize: windowWidth < 480 ? '12px' : '14px',
+                      whiteSpace: 'nowrap'
+                    }}
                     onClick={async () => {
                       const { team1Wins, team2Wins } = calculateSetWins(match);
                       if (team1Wins === team2Wins) {
@@ -958,6 +1047,7 @@ const TournamentDetail = () => {
                       const winner = team1Wins > team2Wins ? match.team1 : match.team2;
                       const winnerWins = team1Wins > team2Wins ? team1Wins : team2Wins;
                       
+                      setLoading({ ...loading, markComplete: match._id });
                       try {
                         console.log('Completing match:', {
                           matchId: match._id,
@@ -997,10 +1087,12 @@ const TournamentDetail = () => {
                       } catch (error) {
                         console.error('Error completing match:', error);
                         alert('Failed to complete match: ' + (error.response?.data?.error || error.message));
+                      } finally {
+                        setLoading({ ...loading, markComplete: null });
                       }
                     }}
                   >
-                    ✓ Mark Complete
+                    {loading.markComplete === match._id ? '⏳ Completing...' : '✓ Mark Complete'}
                   </button>
                 )}
               </>
@@ -1010,9 +1102,15 @@ const TournamentDetail = () => {
               <button 
                 className="btn btn-danger" 
                 onClick={() => handleMatchDelete(match._id)}
-                style={{ marginLeft: 'auto' }}
+                disabled={loading.deleteMatch === match._id}
+                style={{ 
+                  marginLeft: windowWidth < 480 ? '0' : 'auto',
+                  padding: windowWidth < 480 ? '8px 12px' : '10px 16px',
+                  fontSize: windowWidth < 480 ? '12px' : '14px',
+                  whiteSpace: 'nowrap'
+                }}
               >
-                🗑️ Delete
+                {loading.deleteMatch === match._id ? '⏳ Deleting...' : '🗑️ Delete'}
               </button>
             )}
           </div>
@@ -1551,8 +1649,12 @@ const TournamentDetail = () => {
             <h2>Group Matches</h2>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               {groupMatches.length === 0 ? (
-                <button className="btn btn-primary" onClick={handleGenerateGroupMatches}>
-                  ⚡ Generate All Group Matches
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleGenerateGroupMatches}
+                  disabled={loading.generateGroupMatches}
+                >
+                  {loading.generateGroupMatches ? '⏳ Generating...' : '⚡ Generate All Group Matches'}
                 </button>
               ) : (
                 <>
@@ -1562,9 +1664,10 @@ const TournamentDetail = () => {
                   <button 
                     className="btn btn-warning" 
                     onClick={handleGenerateGroupMatches}
+                    disabled={loading.generateGroupMatches}
                     style={{ background: '#ffc107', color: '#000', border: 'none' }}
                   >
-                    🔄 Regenerate Group Matches
+                    {loading.generateGroupMatches ? '⏳ Regenerating...' : '🔄 Regenerate Group Matches'}
                   </button>
                 </>
               )}
@@ -1585,8 +1688,12 @@ const TournamentDetail = () => {
             <h2>Tournament Actions</h2>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {semiFinals.length === 0 ? (
-                <button className="btn btn-primary" onClick={handleGenerateSemiFinals}>
-                  Generate Semi-Final (Top 3 Teams)
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleGenerateSemiFinals}
+                  disabled={loading.generateSemiFinals}
+                >
+                  {loading.generateSemiFinals ? '⏳ Generating...' : 'Generate Semi-Final (Top 3 Teams)'}
                 </button>
               ) : (
                 <button 
@@ -1600,33 +1707,46 @@ const TournamentDetail = () => {
                 </button>
               )}
               {semiFinals.length === 2 && semiFinals[0].status === 'completed' && semiFinals[1].team2 === null && (
-                <button className="btn btn-info" onClick={handleUpdateSemiFinal2} style={{ background: '#17a2b8', color: 'white' }}>
-                  Update Semi-Final 2
+                <button 
+                  className="btn btn-info" 
+                  onClick={handleUpdateSemiFinal2} 
+                  disabled={loading.updateSemiFinal2}
+                  style={{ background: '#17a2b8', color: 'white' }}
+                >
+                  {loading.updateSemiFinal2 ? '⏳ Updating...' : 'Update Semi-Final 2'}
                 </button>
               )}
               {semiFinals.length === 2 && semiFinals.every(m => m.status === 'completed') && !finalMatch && (
-                <button className="btn btn-success" onClick={handleGenerateFinal}>
-                  Generate Final
+                <button 
+                  className="btn btn-success" 
+                  onClick={handleGenerateFinal}
+                  disabled={loading.generateFinal}
+                >
+                  {loading.generateFinal ? '⏳ Generating...' : 'Generate Final'}
                 </button>
               )}
               <button className="btn btn-secondary" onClick={() => setShowMatchModal(true)}>
                 + Create Manual Match
               </button>
-              <button 
-                className="btn btn-secondary" 
-                onClick={async () => {
-                  try {
-                    await recalculateTeamStats(id);
-                    await loadData();
-                  } catch (error) {
-                    console.error('Error recalculating stats:', error);
-                    alert('Failed to recalculate statistics');
-                  }
-                }}
-                style={{ background: '#17a2b8', color: 'white' }}
-              >
-                🔄 Recalculate Stats
-              </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={async () => {
+                    setLoading({ ...loading, recalculateStats: true });
+                    try {
+                      await recalculateTeamStats(id);
+                      await loadData();
+                    } catch (error) {
+                      console.error('Error recalculating stats:', error);
+                      alert('Failed to recalculate statistics');
+                    } finally {
+                      setLoading({ ...loading, recalculateStats: false });
+                    }
+                  }}
+                  disabled={loading.recalculateStats}
+                  style={{ background: '#17a2b8', color: 'white' }}
+                >
+                  {loading.recalculateStats ? '⏳ Recalculating...' : '🔄 Recalculate Stats'}
+                </button>
             </div>
           </div>
         )}
@@ -1641,22 +1761,32 @@ const TournamentDetail = () => {
         }}>
           {/* Final Match */}
           {finalMatch && (
-            <div className="card" style={{ marginBottom: '20px' }}>
-              <h2>🏆 Final Match</h2>
+            <div className="card" style={{ marginBottom: '20px', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+              <h2 style={{ fontSize: windowWidth < 480 ? '18px' : '24px' }}>🏆 Final Match</h2>
               {renderMatchScorecard(finalMatch)}
             </div>
           )}
 
           {/* Semi-Finals */}
           {semiFinals.length > 0 && (
-            <div className="card" style={{ marginBottom: '20px' }}>
-              <h2>🥈 Semi-Finals</h2>
+            <div className="card" style={{ marginBottom: '20px', width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+              <h2 style={{ fontSize: windowWidth < 480 ? '18px' : '24px' }}>🥈 Semi-Finals</h2>
               {semiFinals.map((match, index) => (
-                <div key={match._id}>
-                  <h3 style={{ marginBottom: '10px', color: '#666' }}>Semi-Final {index + 1}</h3>
+                <div key={match._id} style={{ width: '100%', maxWidth: '100%' }}>
+                  <h3 style={{ 
+                    marginBottom: '10px', 
+                    color: '#666',
+                    fontSize: windowWidth < 480 ? '14px' : '18px'
+                  }}>Semi-Final {index + 1}</h3>
                   {renderMatchScorecard(match)}
                   {index === 0 && match.status === 'completed' && (
-                    <div style={{ marginTop: '10px', padding: '8px', background: '#fff3cd', borderRadius: '5px', fontSize: '13px' }}>
+                    <div style={{ 
+                      marginTop: '10px', 
+                      padding: windowWidth < 480 ? '6px' : '8px', 
+                      background: '#fff3cd', 
+                      borderRadius: '5px', 
+                      fontSize: windowWidth < 480 ? '11px' : '13px' 
+                    }}>
                       ⚠️ Complete Semi-Final 1 first, then update Semi-Final 2 with the loser
                     </div>
                   )}
@@ -1677,10 +1807,10 @@ const TournamentDetail = () => {
 
           {/* Group Matches */}
           {groupMatches.length > 0 && (
-            <div className="card">
-              <h2>📋 Group Matches</h2>
+            <div className="card" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+              <h2 style={{ fontSize: windowWidth < 480 ? '18px' : '24px' }}>📋 Group Matches</h2>
               {groupMatches.map(match => (
-                <div key={match._id}>
+                <div key={match._id} style={{ width: '100%', maxWidth: '100%' }}>
                   {renderMatchScorecard(match)}
                 </div>
               ))}
@@ -1740,8 +1870,8 @@ const TournamentDetail = () => {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowMatchModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Create
+                <button type="submit" className="btn btn-primary" disabled={loading.createMatch}>
+                  {loading.createMatch ? '⏳ Creating...' : 'Create'}
                 </button>
               </div>
             </form>
@@ -1838,8 +1968,8 @@ const TournamentDetail = () => {
                 }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Add Score
+                <button type="submit" className="btn btn-primary" disabled={loading.addScore}>
+                  {loading.addScore ? '⏳ Adding...' : 'Add Score'}
                 </button>
               </div>
             </form>
