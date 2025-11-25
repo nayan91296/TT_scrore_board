@@ -17,8 +17,8 @@ const Teams = () => {
   });
   const [randomTeamForm, setRandomTeamForm] = useState({
     tournament: '',
-    numberOfTeams: 2,
-    playersPerTeam: 2
+    numberOfTeams: 0,
+    playersPerTeam: 0
   });
   const [selectedPlayersForRandom, setSelectedPlayersForRandom] = useState([]);
   
@@ -221,7 +221,7 @@ const Teams = () => {
       }
 
       setShowRandomModal(false);
-      setRandomTeamForm({ tournament: '', numberOfTeams: 2, playersPerTeam: 2 });
+      setRandomTeamForm({ tournament: '', numberOfTeams: 0, playersPerTeam: 0 });
       setSelectedPlayersForRandom([]);
       loadTeams();
       alert(`Successfully created ${randomTeamForm.numberOfTeams} team(s) for the tournament!`);
@@ -541,10 +541,10 @@ const Teams = () => {
                 <input
                   type="number"
                   required
-                  min="2"
+                  min="0"
                   max="20"
                   value={randomTeamForm.numberOfTeams}
-                  onChange={(e) => setRandomTeamForm({ ...randomTeamForm, numberOfTeams: parseInt(e.target.value) || 2 })}
+                  onChange={(e) => setRandomTeamForm({ ...randomTeamForm, numberOfTeams: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div className="form-group">
@@ -552,10 +552,10 @@ const Teams = () => {
                 <input
                   type="number"
                   required
-                  min="1"
+                  min="0"
                   max="10"
                   value={randomTeamForm.playersPerTeam}
-                  onChange={(e) => setRandomTeamForm({ ...randomTeamForm, playersPerTeam: parseInt(e.target.value) || 2 })}
+                  onChange={(e) => setRandomTeamForm({ ...randomTeamForm, playersPerTeam: parseInt(e.target.value) || 0 })}
                 />
               </div>
               <div className="form-group">

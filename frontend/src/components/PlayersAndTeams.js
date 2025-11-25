@@ -1483,9 +1483,9 @@ const PlayersAndTeams = () => {
                     <label>Number of Teams</label>
                     <input
                       type="number"
-                      min="2"
+                      min="0"
                       value={randomTeamForm.numberOfTeams}
-                      onChange={(e) => setRandomTeamForm({ ...randomTeamForm, numberOfTeams: parseInt(e.target.value) || 2 })}
+                      onChange={(e) => setRandomTeamForm({ ...randomTeamForm, numberOfTeams: parseInt(e.target.value) || 0 })}
                       placeholder="Enter number of teams"
                     />
                     <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
@@ -1496,10 +1496,10 @@ const PlayersAndTeams = () => {
                     <label>Players per Team</label>
                     <input
                       type="number"
-                      min="1"
+                      min="0"
                       max="10"
                       value={randomTeamForm.playersPerTeam}
-                      onChange={(e) => setRandomTeamForm({ ...randomTeamForm, playersPerTeam: parseInt(e.target.value) || 2 })}
+                      onChange={(e) => setRandomTeamForm({ ...randomTeamForm, playersPerTeam: parseInt(e.target.value) || 0 })}
                     />
                   </div>
                   <div className="form-group">
