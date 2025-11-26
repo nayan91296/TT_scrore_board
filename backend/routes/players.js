@@ -4,6 +4,7 @@ const Player = require('../models/Player');
 const Team = require('../models/Team');
 const Match = require('../models/Match');
 const Tournament = require('../models/Tournament');
+const requirePin = require('../middleware/requirePin');
 
 // Helper function to calculate player statistics from matches and tournaments
 const calculatePlayerStats = async (playerId) => {
@@ -215,8 +216,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create player
-router.post('/', async (req, res) => {
+// Create player (PIN protected)
+router.post('/', requirePin, async (req, res) => {
   try {
     // Only allow name field, ignore email, phone, rating
     const playerData = {
@@ -244,8 +245,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update player
-router.put('/:id', async (req, res) => {
+// Update player (PIN protected)
+router.put('/:id', requirePin, async (req, res) => {
   try {
     // Only allow name field to be updated
     const updateData = {
@@ -280,8 +281,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete player
-router.delete('/:id', async (req, res) => {
+// Delete player (PIN protected)
+router.delete('/:id', requirePin, async (req, res) => {
   try {
     const player = await Player.findByIdAndDelete(req.params.id);
     if (!player) {

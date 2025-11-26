@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { verifyPin } from '../services/api';
 
 const PinVerification = ({ onVerify, onCancel, action = 'perform this action' }) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -13,9 +15,22 @@ const PinVerification = ({ onVerify, onCancel, action = 'perform this action' })
       return;
     }
 
-    // Let the backend validate the PIN via API (parent will use the value)
-    onVerify(pin);
-    setPin('');
+    try {
+      setLoading(true);
+      await verifyPin(pin); // backend validation
+      setLoading(false);
+      onVerify(pin);        // inform parent only after backend says OK
+      setPin('');
+    } catch (err) {
+      setLoading(false);
+      if (err.response && err.response.status === 401) {
+        setError('Incorrect PIN. Please try again.');
+      } else if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('Failed to verify PIN. Please try again.');
+      }
+    }
   };
 
   const handleCancel = () => {
@@ -86,8 +101,8 @@ const PinVerification = ({ onVerify, onCancel, action = 'perform this action' })
             <button type="button" className="btn btn-secondary" onClick={handleCancel}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Verify
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? 'Verifying...' : 'Verify'}
             </button>
           </div>
         </form>

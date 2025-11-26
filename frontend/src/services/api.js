@@ -19,6 +19,11 @@ export const setAdminPin = (pin) => {
   }
 };
 
+// Verify PIN against backend
+export const verifyPin = (pin) => {
+  return api.post('/admin/verify-pin', { pin });
+};
+
 // Tournament APIs
 export const getTournaments = (status) => {
   const url = status ? `/tournaments?status=${status}` : '/tournaments';

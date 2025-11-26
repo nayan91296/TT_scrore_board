@@ -20,6 +20,7 @@ mongoose.connect(MONGODB_URI, {
 .catch(err => console.error('MongoDB connection error:', err));
 
 // Routes
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api/tournaments', require('./routes/tournaments'));
 app.use('/api/players', require('./routes/players'));
 app.use('/api/teams', require('./routes/teams'));
