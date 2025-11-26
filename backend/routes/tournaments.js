@@ -3,6 +3,7 @@ const router = express.Router();
 const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const Match = require('../models/Match');
+const requirePin = require('../middleware/requirePin');
 
 // Get all tournaments
 router.get('/', async (req, res) => {
@@ -407,8 +408,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update tournament
-router.put('/:id', async (req, res) => {
+// Update tournament (PIN protected – used for status/winner updates from UI)
+router.put('/:id', requirePin, async (req, res) => {
   try {
     const tournament = await Tournament.findByIdAndUpdate(
       req.params.id,
@@ -435,8 +436,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete tournament
-router.delete('/:id', async (req, res) => {
+// Delete tournament (PIN protected)
+router.delete('/:id', requirePin, async (req, res) => {
   try {
     const tournament = await Tournament.findById(req.params.id);
     if (!tournament) {

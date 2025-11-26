@@ -4,23 +4,18 @@ const PinVerification = ({ onVerify, onCancel, action = 'perform this action' })
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
-  // Default PIN - can be changed via localStorage
-  const getStoredPin = () => {
-    return localStorage.getItem('app_pin') || process.env.REACT_APP_PIN;
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
-    const storedPin = getStoredPin();
-    
-    if (pin === storedPin) {
-      onVerify();
-    } else {
-      setError('Incorrect PIN. Please try again.');
-      setPin('');
+    if (!pin) {
+      setError('PIN is required');
+      return;
     }
+
+    // Let the backend validate the PIN via API (parent will use the value)
+    onVerify(pin);
+    setPin('');
   };
 
   const handleCancel = () => {

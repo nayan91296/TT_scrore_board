@@ -3,6 +3,7 @@ const router = express.Router();
 const Match = require('../models/Match');
 const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
+const requirePin = require('../middleware/requirePin');
 
 // Get all matches
 router.get('/', async (req, res) => {
@@ -359,8 +360,8 @@ router.post('/:id/toss', async (req, res) => {
   }
 });
 
-// Delete match
-router.delete('/:id', async (req, res) => {
+// Delete match (PIN protected)
+router.delete('/:id', requirePin, async (req, res) => {
   try {
     const match = await Match.findById(req.params.id);
     if (!match) {

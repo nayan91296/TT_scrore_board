@@ -13,7 +13,8 @@ import {
   updateTournament,
   recalculateTeamStats,
   deleteMatch,
-  performToss
+  performToss,
+  setAdminPin
 } from '../services/api';
 import PinVerification from './PinVerification';
 
@@ -381,7 +382,9 @@ const TournamentDetail = () => {
     setShowPinModal(true);
   };
 
-  const handlePinVerify = () => {
+  const handlePinVerify = (pin) => {
+    // Store PIN in API client so protected backend routes can verify it
+    setAdminPin(pin);
     setShowPinModal(false);
     if (pendingAction) {
       pendingAction();

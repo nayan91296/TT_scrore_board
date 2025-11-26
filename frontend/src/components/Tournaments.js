@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getTournaments, getTournamentHistory, createTournament, deleteTournament } from '../services/api';
+import { getTournaments, getTournamentHistory, createTournament, deleteTournament, setAdminPin } from '../services/api';
 import PinVerification from './PinVerification';
 
 const Tournaments = () => {
@@ -106,7 +106,9 @@ const Tournaments = () => {
     setShowPinModal(true);
   };
 
-  const handlePinVerify = () => {
+  const handlePinVerify = (pin) => {
+    // Store PIN in API client so protected backend routes can verify it
+    setAdminPin(pin);
     setShowPinModal(false);
     if (pendingAction) {
       pendingAction();

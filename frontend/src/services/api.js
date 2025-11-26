@@ -10,6 +10,15 @@ const api = axios.create({
   },
 });
 
+// Set or clear admin PIN header for protected actions
+export const setAdminPin = (pin) => {
+  if (pin) {
+    api.defaults.headers.common['x-admin-pin'] = pin;
+  } else {
+    delete api.defaults.headers.common['x-admin-pin'];
+  }
+};
+
 // Tournament APIs
 export const getTournaments = (status) => {
   const url = status ? `/tournaments?status=${status}` : '/tournaments';
