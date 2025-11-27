@@ -1174,7 +1174,6 @@ const TournamentDetail = () => {
   })));
   
   const finalMatch = matches.find(m => m.matchType === 'final');
-  const groupMatches = matches.filter(m => m.matchType === 'group');
   
   // Helper function to get winner - handles both populated objects and ObjectIds
   const getTournamentWinner = () => {
@@ -1254,6 +1253,16 @@ const TournamentDetail = () => {
     Array.isArray(m.scores) && 
     m.scores.length > 0
   );
+
+  // Check if all group matches are completed
+  const groupMatches = matches.filter(m => m.matchType === 'group');
+  const allGroupMatchesCompleted = groupMatches.length > 0 && groupMatches.every(m => m.status === 'completed');
+  
+  // Get qualified teams (top 3) if all group matches are completed
+  const sortedTeamsForQualification = sortTeamsWithTieBreaker(teams, completedMatchesWithScores);
+  const qualifiedTeamIds = allGroupMatchesCompleted && sortedTeamsForQualification.length >= 3
+    ? sortedTeamsForQualification.slice(0, 3).map(t => t._id.toString())
+    : [];
 
   return (
     <div style={{ 
@@ -1433,6 +1442,7 @@ const TournamentDetail = () => {
                 const nrr = calculateNRR(team._id, completedMatchesWithScores);
                 const nrrColor = nrr > 0 ? '#4caf50' : nrr < 0 ? '#f44336' : '#666';
                 const tied = isTied(index);
+                const isQualified = qualifiedTeamIds.includes(team._id.toString());
               
               return (
                 <div
@@ -1448,6 +1458,7 @@ const TournamentDetail = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                       <span style={{ fontSize: '16px', fontWeight: 'bold', minWidth: '30px' }}>
+                        {isQualified && <span style={{ color: '#4caf50', fontWeight: 'bold', marginRight: '4px' }}>Q</span>}
                         {position === 1 && '🥇'}
                         {position === 2 && '🥈'}
                         {position === 3 && '🥉'}
@@ -1551,6 +1562,7 @@ const TournamentDetail = () => {
                   const isTopThree = index < 3;
                   const position = index + 1;
                   const tied = isTied(index);
+                  const isQualified = qualifiedTeamIds.includes(team._id.toString());
                 
                 return (
                   <tr 
@@ -1562,12 +1574,13 @@ const TournamentDetail = () => {
                     }}
                   >
                     <td style={{ padding: windowWidth < 768 ? '6px' : '12px' }}>
-                      {position === 1 && <span style={{ color: '#ffd700', marginRight: '3px' }}>🥇</span>}
+                      {isQualified && <span style={{ color: '#4caf50', fontWeight: 'bold', marginRight: '4px', fontSize: windowWidth < 768 ? '14px' : '14px' }}>Q</span>}
+                      {/* {position === 1 && <span style={{ color: '#ffd700', marginRight: '3px' }}>🥇</span>}
                       {position === 2 && <span style={{ color: '#c0c0c0', marginRight: '3px' }}>🥈</span>}
-                      {position === 3 && <span style={{ color: '#cd7f32', marginRight: '3px' }}>🥉</span>}
+                      {position === 3 && <span style={{ color: '#cd7f32', marginRight: '3px' }}>🥉</span>} */}
                       {position > 3 && position}
                       {tied && <span style={{ color: '#ff9800', fontSize: '10px', marginLeft: '3px' }} title="Tied with next team">=</span>}
-                      {isTopThree && windowWidth >= 640 && <span style={{ marginLeft: '3px', color: '#4caf50' }}>✓</span>}
+                      {isTopThree && windowWidth >= 640 && !isQualified && <span style={{ marginLeft: '3px', color: '#4caf50' }}>✓</span>}
                     </td>
                     <td style={{ padding: windowWidth < 768 ? '6px' : '12px' }}>
                       <strong style={{ fontSize: windowWidth < 768 ? '11px' : '14px' }}>{team.name}</strong>
