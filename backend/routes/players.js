@@ -216,8 +216,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create player (PIN protected)
-router.post('/', requirePin, async (req, res) => {
+// Create player
+router.post('/', async (req, res) => {
   try {
     // Only allow name field, ignore email, phone, rating
     const playerData = {
