@@ -5,6 +5,256 @@ const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const requirePin = require('../middleware/requirePin');
 
+// Helper function to calculate NRR (Net Run Rate)
+const calculateNRR = (teamId, matches) => {
+  let totalPointsScored = 0;
+  let totalPointsConceded = 0;
+  let totalSetsPlayed = 0;
+
+  matches.forEach(match => {
+    if (match.status !== 'completed' || !match.scores || !Array.isArray(match.scores)) {
+      return;
+    }
+
+    const team1Id = match.team1?._id?.toString() || match.team1?.toString();
+    const team2Id = match.team2?._id?.toString() || match.team2?.toString();
+    const teamIdStr = teamId.toString();
+
+    if (team1Id !== teamIdStr && team2Id !== teamIdStr) {
+      return;
+    }
+
+    match.scores.forEach(score => {
+      const team1Score = parseInt(score.team1Score) || 0;
+      const team2Score = parseInt(score.team2Score) || 0;
+      
+      if (team1Id === teamIdStr) {
+        totalPointsScored += team1Score;
+        totalPointsConceded += team2Score;
+      } else {
+        totalPointsScored += team2Score;
+        totalPointsConceded += team1Score;
+      }
+      totalSetsPlayed++;
+    });
+  });
+
+  if (totalSetsPlayed === 0) return 0;
+  return (totalPointsScored - totalPointsConceded) / totalSetsPlayed;
+};
+
+// Helper function to check if all group matches are completed
+const areAllGroupMatchesCompleted = async (tournamentId) => {
+  const allGroupMatches = await Match.find({
+    tournament: tournamentId,
+    matchType: 'group'
+  });
+  
+  if (allGroupMatches.length === 0) return false;
+  
+  return allGroupMatches.every(match => match.status === 'completed' && match.winner);
+};
+
+// Helper function to generate semi-finals
+const generateSemiFinals = async (tournamentId) => {
+  try {
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      console.error('Tournament not found for semi-final generation');
+      return false;
+    }
+
+    const teams = await Team.find({ tournament: tournamentId });
+    if (teams.length < 3) {
+      console.log('Need at least 3 teams for semi-finals');
+      return false;
+    }
+
+    // Check if semi-finals already exist
+    const existingSemis = await Match.find({
+      tournament: tournamentId,
+      matchType: 'semifinal'
+    });
+    
+    if (existingSemis.length > 0) {
+      console.log('Semi-finals already exist, skipping generation');
+      return false;
+    }
+
+    // Get all group matches for NRR calculation
+    const allMatches = await Match.find({
+      tournament: tournamentId,
+      matchType: 'group'
+    }).populate('team1').populate('team2');
+
+    const matchesWithScores = allMatches.filter(m =>
+      m.status === 'completed' &&
+      m.scores &&
+      Array.isArray(m.scores) &&
+      m.scores.length > 0 &&
+      m.matchType === 'group'
+    );
+
+    // Sort teams by points with tie-breaking
+    const sortedTeams = [...teams].sort((a, b) => {
+      if ((b.points || 0) !== (a.points || 0)) {
+        return (b.points || 0) - (a.points || 0);
+      }
+
+      const aNRR = calculateNRR(a._id, matchesWithScores);
+      const bNRR = calculateNRR(b._id, matchesWithScores);
+      if (Math.abs(bNRR - aNRR) > 0.001) {
+        return bNRR - aNRR;
+      }
+
+      if ((b.matchesWon || 0) !== (a.matchesWon || 0)) {
+        return (b.matchesWon || 0) - (a.matchesWon || 0);
+      }
+
+      return (a.matchesLost || 0) - (b.matchesLost || 0);
+    });
+
+    if (sortedTeams.length < 3) {
+      console.log('Need at least 3 teams for semi-finals');
+      return false;
+    }
+
+    // Semi-final 1: 1st vs 2nd
+    const semiFinal1 = new Match({
+      tournament: tournamentId,
+      team1: sortedTeams[0]._id,
+      team2: sortedTeams[1]._id,
+      matchType: 'semifinal',
+      status: 'scheduled'
+    });
+    await semiFinal1.save();
+
+    // Semi-final 2: 3rd vs (will be updated with Semi 1 loser)
+    const semiFinal2 = new Match({
+      tournament: tournamentId,
+      team1: sortedTeams[2]._id,
+      team2: null,
+      matchType: 'semifinal',
+      status: 'scheduled'
+    });
+    await semiFinal2.save();
+
+    tournament.semiFinalMatches = [semiFinal1._id, semiFinal2._id];
+    await tournament.save();
+
+    console.log(`✓ Auto-generated Semi-Final 1: ${sortedTeams[0].name} vs ${sortedTeams[1].name}`);
+    console.log(`✓ Auto-generated Semi-Final 2: ${sortedTeams[2].name} vs (Semi 1 loser)`);
+    return true;
+  } catch (error) {
+    console.error('Error generating semi-finals:', error);
+    return false;
+  }
+};
+
+// Helper function to update semi-final 2 with semi-final 1 loser
+const updateSemiFinal2 = async (tournamentId) => {
+  try {
+    const tournament = await Tournament.findById(tournamentId)
+      .populate({
+        path: 'semiFinalMatches',
+        populate: { path: 'team1 team2 winner' }
+      });
+
+    if (!tournament || !tournament.semiFinalMatches || tournament.semiFinalMatches.length < 2) {
+      return false;
+    }
+
+    const semiFinal1 = tournament.semiFinalMatches[0];
+    const semiFinal2 = tournament.semiFinalMatches[1];
+
+    if (semiFinal1.status !== 'completed' || !semiFinal1.winner) {
+      return false;
+    }
+
+    // If semi-final 2 already has team2, skip
+    if (semiFinal2.team2) {
+      return false;
+    }
+
+    // Get loser of Semi-final 1
+    const winnerId = semiFinal1.winner?._id
+      ? semiFinal1.winner._id.toString()
+      : semiFinal1.winner?.toString();
+    const team1Id = semiFinal1.team1?._id
+      ? semiFinal1.team1._id.toString()
+      : semiFinal1.team1?.toString();
+    const team2Id = semiFinal1.team2?._id
+      ? semiFinal1.team2._id.toString()
+      : semiFinal1.team2?.toString();
+
+    const loserId = winnerId === team1Id
+      ? (semiFinal1.team2?._id || semiFinal1.team2)
+      : (semiFinal1.team1?._id || semiFinal1.team1);
+
+    semiFinal2.team2 = loserId;
+    await semiFinal2.save();
+
+    console.log(`✓ Auto-updated Semi-Final 2 with Semi 1 loser`);
+    return true;
+  } catch (error) {
+    console.error('Error updating semi-final 2:', error);
+    return false;
+  }
+};
+
+// Helper function to generate final match
+const generateFinal = async (tournamentId) => {
+  try {
+    const tournament = await Tournament.findById(tournamentId)
+      .populate({
+        path: 'semiFinalMatches',
+        populate: { path: 'team1 team2 winner' }
+      });
+
+    if (!tournament || !tournament.semiFinalMatches || tournament.semiFinalMatches.length < 2) {
+      return false;
+    }
+
+    // Check if final already exists
+    if (tournament.finalMatch) {
+      const finalMatch = await Match.findById(tournament.finalMatch);
+      if (finalMatch) {
+        console.log('Final match already exists, skipping generation');
+        return false;
+      }
+    }
+
+    const semiFinal1 = tournament.semiFinalMatches[0];
+    const semiFinal2 = tournament.semiFinalMatches[1];
+
+    if (semiFinal1.status !== 'completed' || semiFinal2.status !== 'completed') {
+      return false;
+    }
+
+    if (!semiFinal1.winner || !semiFinal2.winner) {
+      return false;
+    }
+
+    const finalMatch = new Match({
+      tournament: tournamentId,
+      team1: semiFinal1.winner._id || semiFinal1.winner,
+      team2: semiFinal2.winner._id || semiFinal2.winner,
+      matchType: 'final',
+      status: 'scheduled'
+    });
+
+    await finalMatch.save();
+    tournament.finalMatch = finalMatch._id;
+    await tournament.save();
+
+    console.log(`✓ Auto-generated Final match`);
+    return true;
+  } catch (error) {
+    console.error('Error generating final:', error);
+    return false;
+  }
+};
+
 // Get all matches
 router.get('/', async (req, res) => {
   try {
@@ -184,6 +434,51 @@ router.put('/:id', async (req, res) => {
       console.log('Verification after match completion:');
       console.log(`Winner ${winnerTeam?.name}: Points=${winnerTeam?.points}, Won=${winnerTeam?.matchesWon}, Played=${winnerTeam?.matchesPlayed}`);
       console.log(`Loser ${loserTeam?.name}: Lost=${loserTeam?.matchesLost}, Played=${loserTeam?.matchesPlayed}`);
+
+      // Auto-generation logic based on match type
+      const tournamentId = match.tournament.toString();
+      
+      if (match.matchType === 'group') {
+        // Check if all group matches are completed, then generate semi-finals
+        const allGroupCompleted = await areAllGroupMatchesCompleted(tournamentId);
+        if (allGroupCompleted) {
+          console.log('All group matches completed, auto-generating semi-finals...');
+          await generateSemiFinals(tournamentId);
+        }
+      } else if (match.matchType === 'semifinal') {
+        // Check if this is semi-final 1, then update semi-final 2
+        const tournament = await Tournament.findById(tournamentId)
+          .populate('semiFinalMatches');
+        
+        if (tournament && tournament.semiFinalMatches && tournament.semiFinalMatches.length >= 2) {
+          const semi1Id = tournament.semiFinalMatches[0]._id.toString();
+          const matchId = match._id.toString();
+          
+          if (semi1Id === matchId) {
+            // Semi-Final 1 completed
+            console.log('Semi-Final 1 completed, auto-updating Semi-Final 2...');
+            await updateSemiFinal2(tournamentId);
+            
+            // After updating, check if semi-final 2 is also completed
+            const updatedTournament = await Tournament.findById(tournamentId)
+              .populate('semiFinalMatches');
+            const semiFinal2 = updatedTournament.semiFinalMatches[1];
+            if (semiFinal2.status === 'completed') {
+              console.log('Both semi-finals completed, auto-generating final...');
+              await generateFinal(tournamentId);
+            }
+          } else {
+            // This is semi-final 2, check if both are completed to generate final
+            const semiFinal1 = tournament.semiFinalMatches[0];
+            const semiFinal2 = tournament.semiFinalMatches[1];
+            
+            if (semiFinal1.status === 'completed' && semiFinal2.status === 'completed') {
+              console.log('Both semi-finals completed, auto-generating final...');
+              await generateFinal(tournamentId);
+            }
+          }
+        }
+      }
     }
     
     res.json(updatedMatch);
@@ -303,6 +598,51 @@ router.post('/:id/score', async (req, res) => {
       
       // Save match with winner
       await match.save();
+
+      // Auto-generation logic based on match type
+      const tournamentId = match.tournament.toString();
+      
+      if (match.matchType === 'group') {
+        // Check if all group matches are completed, then generate semi-finals
+        const allGroupCompleted = await areAllGroupMatchesCompleted(tournamentId);
+        if (allGroupCompleted) {
+          console.log('All group matches completed, auto-generating semi-finals...');
+          await generateSemiFinals(tournamentId);
+        }
+      } else if (match.matchType === 'semifinal') {
+        // Check if this is semi-final 1, then update semi-final 2
+        const tournament = await Tournament.findById(tournamentId)
+          .populate('semiFinalMatches');
+        
+        if (tournament && tournament.semiFinalMatches && tournament.semiFinalMatches.length >= 2) {
+          const semi1Id = tournament.semiFinalMatches[0]._id.toString();
+          const matchId = match._id.toString();
+          
+          if (semi1Id === matchId) {
+            // Semi-Final 1 completed
+            console.log('Semi-Final 1 completed, auto-updating Semi-Final 2...');
+            await updateSemiFinal2(tournamentId);
+            
+            // After updating, check if semi-final 2 is also completed
+            const updatedTournament = await Tournament.findById(tournamentId)
+              .populate('semiFinalMatches');
+            const semiFinal2 = updatedTournament.semiFinalMatches[1];
+            if (semiFinal2.status === 'completed') {
+              console.log('Both semi-finals completed, auto-generating final...');
+              await generateFinal(tournamentId);
+            }
+          } else {
+            // This is semi-final 2, check if both are completed to generate final
+            const semiFinal1 = tournament.semiFinalMatches[0];
+            const semiFinal2 = tournament.semiFinalMatches[1];
+            
+            if (semiFinal1.status === 'completed' && semiFinal2.status === 'completed') {
+              console.log('Both semi-finals completed, auto-generating final...');
+              await generateFinal(tournamentId);
+            }
+          }
+        }
+      }
     }
 
     // Reload match from database to ensure we have the latest data
