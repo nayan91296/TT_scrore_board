@@ -1715,7 +1715,7 @@ const TournamentDetail = () => {
         )}
 
         {/* Actions */}
-        {teams.length >= 3 && (
+        {/* {teams.length >= 3 && (
           <div className="card" style={{ marginBottom: '20px' }}>
             <h2>Tournament Actions</h2>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -1781,7 +1781,7 @@ const TournamentDetail = () => {
                 </button>
             </div>
           </div>
-        )}
+        )} */}
           </div>
         </div>
 
