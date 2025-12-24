@@ -5,6 +5,30 @@ const Tournament = require('../models/Tournament');
 const Team = require('../models/Team');
 const requirePin = require('../middleware/requirePin');
 
+// Helper function to perform automatic toss for a match
+const performAutoToss = async (match) => {
+  try {
+    // Only perform toss if both teams are assigned
+    if (!match.team1 || !match.team2) {
+      return false;
+    }
+
+    // Randomly determine toss winner (50/50 chance)
+    const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+    const tossWinnerId = tossResult === 'team1' ? match.team1 : match.team2;
+    
+    // Set toss winner
+    match.tossWinner = tossWinnerId;
+    await match.save();
+    
+    console.log(`✓ Auto-toss performed for ${match.matchType} match: Team ${tossResult === 'team1' ? '1' : '2'} won the toss`);
+    return true;
+  } catch (error) {
+    console.error('Error performing auto-toss:', error);
+    return false;
+  }
+};
+
 // Helper function to calculate NRR (Net Run Rate)
 const calculateNRR = (teamId, matches) => {
   let totalPointsScored = 0;
@@ -128,6 +152,8 @@ const generateSemiFinals = async (tournamentId) => {
       status: 'scheduled'
     });
     await semiFinal1.save();
+    // Perform auto-toss for semi-final 1
+    await performAutoToss(semiFinal1);
 
     // Semi-final 2: 3rd vs (will be updated with Semi 1 loser)
     const semiFinal2 = new Match({
@@ -138,6 +164,7 @@ const generateSemiFinals = async (tournamentId) => {
       status: 'scheduled'
     });
     await semiFinal2.save();
+    // Note: Toss for semi-final 2 will be performed when team2 is assigned
 
     tournament.semiFinalMatches = [semiFinal1._id, semiFinal2._id];
     await tournament.save();
@@ -193,6 +220,8 @@ const updateSemiFinal2 = async (tournamentId) => {
 
     semiFinal2.team2 = loserId;
     await semiFinal2.save();
+    // Perform auto-toss for semi-final 2 now that both teams are assigned
+    await performAutoToss(semiFinal2);
 
     console.log(`✓ Auto-updated Semi-Final 2 with Semi 1 loser`);
     return true;
@@ -244,6 +273,8 @@ const generateFinal = async (tournamentId) => {
     });
 
     await finalMatch.save();
+    // Perform auto-toss for final match
+    await performAutoToss(finalMatch);
     tournament.finalMatch = finalMatch._id;
     await tournament.save();
 
@@ -331,11 +362,17 @@ router.post('/', async (req, res) => {
     const match = new Match(req.body);
     await match.save();
     
+    // Perform auto-toss if both teams are assigned
+    if (match.team1 && match.team2) {
+      await performAutoToss(match);
+    }
+    
     const populatedMatch = await Match.findById(match._id)
       .populate('tournament')
       .populate('team1')
       .populate('team2')
-      .populate('winner');
+      .populate('winner')
+      .populate('tossWinner');
     
     res.status(201).json(populatedMatch);
   } catch (error) {

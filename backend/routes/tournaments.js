@@ -287,6 +287,15 @@ router.post('/:id/generate-group-matches', async (req, res) => {
     for (const matchDataItem of finalMatchData) {
       const match = new Match(matchDataItem);
       await match.save();
+      
+      // Perform auto-toss for group matches
+      if (match.team1 && match.team2) {
+        const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+        const tossWinnerId = tossResult === 'team1' ? match.team1 : match.team2;
+        match.tossWinner = tossWinnerId;
+        await match.save();
+      }
+      
       matches.push(match);
     }
 
@@ -725,6 +734,15 @@ router.post('/:id/semifinals', async (req, res) => {
 
     await semiFinal1.save();
     
+    // Perform auto-toss for semi-final 1
+    if (semiFinal1.team1 && semiFinal1.team2) {
+      const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+      const tossWinnerId = tossResult === 'team1' ? semiFinal1.team1 : semiFinal1.team2;
+      semiFinal1.tossWinner = tossWinnerId;
+      await semiFinal1.save();
+      console.log(`✓ Auto-toss performed for Semi-Final 1: Team ${tossResult === 'team1' ? '1' : '2'} won the toss`);
+    }
+    
     // Verify the match was created correctly
     const savedSemiFinal1 = await Match.findById(semiFinal1._id)
       .populate('team1')
@@ -846,6 +864,15 @@ router.post('/:id/update-semifinal2', async (req, res) => {
     semiFinal2.team2 = loserId;
     await semiFinal2.save();
     
+    // Perform auto-toss for semi-final 2 now that both teams are assigned
+    if (semiFinal2.team1 && semiFinal2.team2) {
+      const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+      const tossWinnerId = tossResult === 'team1' ? semiFinal2.team1 : semiFinal2.team2;
+      semiFinal2.tossWinner = tossWinnerId;
+      await semiFinal2.save();
+      console.log(`✓ Auto-toss performed for Semi-Final 2: Team ${tossResult === 'team1' ? '1' : '2'} won the toss`);
+    }
+    
     console.log(`Updated Semi-Final 2: ${semiFinal2.team1?.name || 'Team 1'} vs ${loserId}`);
 
     // Reload with populated data
@@ -902,6 +929,15 @@ router.post('/:id/final', async (req, res) => {
     });
 
     await finalMatch.save();
+
+    // Perform auto-toss for final match
+    if (finalMatch.team1 && finalMatch.team2) {
+      const tossResult = Math.random() < 0.5 ? 'team1' : 'team2';
+      const tossWinnerId = tossResult === 'team1' ? finalMatch.team1 : finalMatch.team2;
+      finalMatch.tossWinner = tossWinnerId;
+      await finalMatch.save();
+      console.log(`✓ Auto-toss performed for Final match: Team ${tossResult === 'team1' ? '1' : '2'} won the toss`);
+    }
 
     tournament.finalMatch = finalMatch._id;
     await tournament.save();
