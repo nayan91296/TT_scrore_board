@@ -12,6 +12,14 @@ const Players = () => {
   const [pendingActionType, setPendingActionType] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('winPercentage'); // winPercentage, name, totalMatches, tournamentsWon, rating
+  // Get current month in YYYY-MM format
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,12 +34,12 @@ const Players = () => {
 
   useEffect(() => {
     loadPlayers();
-  }, []);
+  }, [selectedMonth]);
 
   const loadPlayers = async () => {
     setLoading(prev => ({ ...prev, loadingPlayers: true }));
     try {
-      const response = await getPlayers();
+      const response = await getPlayers(selectedMonth);
       setAllPlayers(response.data);
       applyFiltersAndSort(response.data);
     } catch (error) {
@@ -189,6 +197,23 @@ const Players = () => {
             flexWrap: 'wrap',
             alignItems: 'center'
           }}>
+            <div style={{ minWidth: '180px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+                📅 Filter by Month
+              </label>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '5px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
             <div style={{ flex: '1', minWidth: '200px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
                 🔍 Search Players

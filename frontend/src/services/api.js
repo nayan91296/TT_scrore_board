@@ -39,8 +39,14 @@ export const generateFinal = (id) => api.post(`/tournaments/${id}/final`);
 export const generateGroupMatches = (id, replace = false) => api.post(`/tournaments/${id}/generate-group-matches`, { replace });
 
 // Player APIs
-export const getPlayers = () => api.get('/players');
-export const getPlayer = (id) => api.get(`/players/${id}`);
+export const getPlayers = (month = null) => {
+  const url = month ? `/players?month=${month}` : '/players';
+  return api.get(url);
+};
+export const getPlayer = (id, month = null) => {
+  const url = month ? `/players/${id}?month=${month}` : `/players/${id}`;
+  return api.get(url);
+};
 export const createPlayer = (data) => api.post('/players', data);
 export const updatePlayer = (id, data) => api.put(`/players/${id}`, data);
 export const deletePlayer = (id) => api.delete(`/players/${id}`);

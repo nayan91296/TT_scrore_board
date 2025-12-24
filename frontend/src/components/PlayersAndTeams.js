@@ -13,6 +13,14 @@ const PlayersAndTeams = () => {
   const [allPlayers, setAllPlayers] = useState([]);
   const [playerSearchTerm, setPlayerSearchTerm] = useState('');
   const [playerSortBy, setPlayerSortBy] = useState('performance');
+  // Get current month in YYYY-MM format
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [playerFormData, setPlayerFormData] = useState({
@@ -71,7 +79,7 @@ const PlayersAndTeams = () => {
     loadPlayers();
     loadTeams();
     loadTournaments();
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -120,7 +128,7 @@ const PlayersAndTeams = () => {
   const loadPlayers = async () => {
     setLoading(prev => ({ ...prev, loadingPlayers: true }));
     try {
-      const response = await getPlayers();
+      const response = await getPlayers(selectedMonth);
       // Log to verify data structure
       console.log('Loaded players with stats:', response.data);
       if (response.data && response.data.length > 0) {
@@ -977,6 +985,23 @@ const PlayersAndTeams = () => {
                 flexWrap: 'wrap',
                 alignItems: 'center'
               }}>
+                <div style={{ minWidth: '150px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: windowWidth < 480 ? '12px' : '14px' }}>
+                    📅 Filter by Month
+                  </label>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: windowWidth < 480 ? '6px 10px' : '8px 12px',
+                      borderRadius: '5px',
+                      border: '1px solid #ddd',
+                      fontSize: windowWidth < 480 ? '12px' : '14px'
+                    }}
+                  />
+                </div>
                 <div style={{ flex: '1', minWidth: '150px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: windowWidth < 480 ? '12px' : '14px' }}>
                     🔍 Search

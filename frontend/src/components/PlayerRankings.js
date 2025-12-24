@@ -7,18 +7,26 @@ const PlayerRankings = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('overall');
   const [selectedFormat, setSelectedFormat] = useState('all'); // all, recent, tournaments
+  // Get current month in YYYY-MM format
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
 
   useEffect(() => {
     loadPlayers();
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [selectedMonth]);
 
   const loadPlayers = async () => {
     try {
       setLoading(true);
-      const response = await getPlayers();
+      const response = await getPlayers(selectedMonth);
       setPlayers(response.data || []);
     } catch (error) {
       console.error('Error loading players:', error);
@@ -189,6 +197,41 @@ const PlayerRankings = () => {
         }}>
           Official player rankings based on tournament performance
         </p>
+      </div>
+
+      {/* Month Filter */}
+      <div style={{ 
+        marginBottom: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ minWidth: '200px' }}>
+          <label style={{ 
+            display: 'block', 
+            marginBottom: '5px', 
+            fontWeight: 'bold', 
+            fontSize: '14px',
+            color: '#1976d2'
+          }}>
+            📅 Filter by Month
+          </label>
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: '2px solid #1976d2',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          />
+        </div>
       </div>
 
       {/* Category Tabs */}
