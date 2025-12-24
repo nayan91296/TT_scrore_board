@@ -7,7 +7,7 @@ const Tournament = require('../models/Tournament');
 const requirePin = require('../middleware/requirePin');
 
 // Helper function to calculate player statistics from matches and tournaments
-const calculatePlayerStats = async (playerId) => {
+const calculatePlayerStats = async (playerId, monthFilter = null) => {
   try {
     // Find all teams that include this player (populate tournament for tournamentsPlayed calculation)
     const teams = await Team.find({ players: playerId }).populate('tournament');
@@ -23,15 +23,31 @@ const calculatePlayerStats = async (playerId) => {
     });
     const teamObjectIds = teams.map(t => t._id);
     
-    // Find ONLY completed matches where this player's teams participated
-    const completedMatches = await Match.find({
+    // Build match query with month filter if provided
+    const matchQuery = {
       status: 'completed',
       winner: { $exists: true, $ne: null },
       $or: [
         { team1: { $in: teamObjectIds } },
         { team2: { $in: teamObjectIds } }
       ]
-    }).lean();
+    };
+    
+    // Add month filter if provided (format: "YYYY-MM")
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-').map(Number);
+      if (year && month) {
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+        matchQuery.matchDate = {
+          $gte: startDate,
+          $lte: endDate
+        };
+      }
+    }
+    
+    // Find ONLY completed matches where this player's teams participated
+    const completedMatches = await Match.find(matchQuery).lean();
     
     let matchesWon = 0;
     let matchesLost = 0;
@@ -110,15 +126,29 @@ const calculatePlayerStats = async (playerId) => {
     const totalMatches = matchesWon + matchesLost;
     const winPercentage = totalMatches > 0 ? ((matchesWon / totalMatches) * 100).toFixed(1) : 0;
     
-    // Count tournaments won by this player's teams
-    const tournamentsWon = await Tournament.countDocuments({
+    // Build tournament query with month filter if provided
+    let tournamentQuery = {
       status: 'completed',
       winner: { $in: teams.map(t => t._id) }
-    });
+    };
     
-    // Count unique tournaments from teams
-    // Handle both populated tournament objects and tournament IDs
-    const uniqueTournamentIds = [...new Set(teams.map(t => {
+    // Filter tournaments by month if provided
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-').map(Number);
+      if (year && month) {
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+        // Tournament should overlap with the selected month
+        tournamentQuery.startDate = { $lte: endDate };
+        tournamentQuery.endDate = { $gte: startDate };
+      }
+    }
+    
+    // Count tournaments won by this player's teams
+    const tournamentsWon = await Tournament.countDocuments(tournamentQuery);
+    
+    // Count unique tournaments from teams (filtered by month if provided)
+    let uniqueTournamentIds = teams.map(t => {
       if (!t.tournament) return null;
       
       // If tournament is populated (object with _id)
@@ -133,9 +163,24 @@ const calculatePlayerStats = async (playerId) => {
       
       // Fallback to string conversion
       return String(t.tournament);
-    }).filter(Boolean))];
+    }).filter(Boolean);
     
-    const tournamentsPlayedCount = uniqueTournamentIds.length;
+    // Filter tournaments by month if provided
+    if (monthFilter && uniqueTournamentIds.length > 0) {
+      const [year, month] = monthFilter.split('-').map(Number);
+      if (year && month) {
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+        const tournamentsInMonth = await Tournament.find({
+          _id: { $in: uniqueTournamentIds },
+          startDate: { $lte: endDate },
+          endDate: { $gte: startDate }
+        }).select('_id').lean();
+        uniqueTournamentIds = tournamentsInMonth.map(t => t._id.toString());
+      }
+    }
+    
+    const tournamentsPlayedCount = [...new Set(uniqueTournamentIds)].length;
     
     const result = { 
       matchesWon, 
@@ -164,11 +209,12 @@ const calculatePlayerStats = async (playerId) => {
 router.get('/', async (req, res) => {
   try {
     const players = await Player.find().sort({ name: 1 });
+    const monthFilter = req.query.month || null; // Format: "YYYY-MM"
     
     // Calculate stats for each player
     const playersWithStats = await Promise.all(
       players.map(async (player) => {
-        const stats = await calculatePlayerStats(player._id);
+        const stats = await calculatePlayerStats(player._id, monthFilter);
         return {
           ...player.toObject(),
           matchesWon: stats.matchesWon,
@@ -197,8 +243,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Player not found' });
     }
     
+    const monthFilter = req.query.month || null; // Format: "YYYY-MM"
+    
     // Calculate and add stats
-    const stats = await calculatePlayerStats(player._id);
+    const stats = await calculatePlayerStats(player._id, monthFilter);
     const playerWithStats = {
       ...player.toObject(),
       matchesWon: stats.matchesWon,
