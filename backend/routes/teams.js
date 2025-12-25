@@ -294,6 +294,204 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Helper function to normalize player IDs for comparison
+const normalizePlayerIds = (players) => {
+  return players.map(p => {
+    const id = p._id || p;
+    return id.toString ? id.toString() : String(id);
+  }).sort();
+};
+
+// Helper function to check if a team combination already exists
+const teamCombinationExists = (playerIds, existingTeams) => {
+  const normalizedIds = normalizePlayerIds(playerIds);
+  
+  return existingTeams.some(team => {
+    if (!team.players || team.players.length !== normalizedIds.length) {
+      return false;
+    }
+    const teamPlayerIds = normalizePlayerIds(team.players);
+    return JSON.stringify(teamPlayerIds) === JSON.stringify(normalizedIds);
+  });
+};
+
+// Smart team generation endpoint
+router.post('/generate-smart-teams', async (req, res) => {
+  try {
+    const { tournament, playerIds, numberOfTeams, playersPerTeam } = req.body;
+
+    // Validate inputs
+    if (!tournament) {
+      return res.status(400).json({ error: 'Tournament is required' });
+    }
+
+    if (!playerIds || !Array.isArray(playerIds) || playerIds.length === 0) {
+      return res.status(400).json({ error: 'Player IDs array is required' });
+    }
+
+    if (!numberOfTeams || numberOfTeams < 2) {
+      return res.status(400).json({ error: 'Number of teams must be at least 2' });
+    }
+
+    if (!playersPerTeam || playersPerTeam < 1) {
+      return res.status(400).json({ error: 'Players per team must be at least 1' });
+    }
+
+    const totalPlayersNeeded = numberOfTeams * playersPerTeam;
+    if (playerIds.length < totalPlayersNeeded) {
+      return res.status(400).json({ 
+        error: `Not enough players. Need ${totalPlayersNeeded} but only have ${playerIds.length}` 
+      });
+    }
+
+    // Validate tournament exists
+    const tournamentExists = await Tournament.findById(tournament);
+    if (!tournamentExists) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    // Get all existing teams to check for duplicates
+    const allExistingTeams = await Team.find().populate('players');
+    
+    // Get existing teams for this tournament
+    const tournamentTeams = await Team.find({ tournament }).populate('players');
+
+    // Shuffle players for randomness
+    const shuffledPlayers = [...playerIds].sort(() => Math.random() - 0.5);
+    
+    // Try to generate unique team combinations
+    const generatedTeams = [];
+    const usedPlayerIndices = new Set();
+    const maxAttempts = 1000; // Maximum attempts to find unique combinations
+    
+    for (let teamIndex = 0; teamIndex < numberOfTeams; teamIndex++) {
+      let attempts = 0;
+      let teamFound = false;
+      
+      while (attempts < maxAttempts && !teamFound) {
+        // Try to select players that haven't been used yet
+        const availableIndices = shuffledPlayers
+          .map((_, idx) => idx)
+          .filter(idx => !usedPlayerIndices.has(idx));
+        
+        if (availableIndices.length < playersPerTeam) {
+          // Not enough unused players, allow reuse but try to minimize it
+          const allIndices = shuffledPlayers.map((_, idx) => idx);
+          const selectedIndices = [];
+          
+          // First, try to use unused players
+          for (let i = 0; i < playersPerTeam && availableIndices.length > 0; i++) {
+            const randomIdx = Math.floor(Math.random() * availableIndices.length);
+            const selectedIdx = availableIndices.splice(randomIdx, 1)[0];
+            selectedIndices.push(selectedIdx);
+            usedPlayerIndices.add(selectedIdx);
+          }
+          
+          // Fill remaining slots with any players (reuse allowed)
+          while (selectedIndices.length < playersPerTeam) {
+            const randomIdx = Math.floor(Math.random() * allIndices.length);
+            const selectedIdx = allIndices[randomIdx];
+            if (!selectedIndices.includes(selectedIdx)) {
+              selectedIndices.push(selectedIdx);
+            }
+          }
+          
+          const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
+          
+          // Check if this combination already exists
+          if (!teamCombinationExists(teamPlayerIds, allExistingTeams)) {
+            generatedTeams.push({
+              name: `Team ${teamIndex + 1}`,
+              tournament,
+              players: teamPlayerIds
+            });
+            teamFound = true;
+          }
+        } else {
+          // We have enough unused players
+          const selectedIndices = [];
+          const availableCopy = [...availableIndices];
+          
+          for (let i = 0; i < playersPerTeam; i++) {
+            const randomIdx = Math.floor(Math.random() * availableCopy.length);
+            const selectedIdx = availableCopy.splice(randomIdx, 1)[0];
+            selectedIndices.push(selectedIdx);
+            usedPlayerIndices.add(selectedIdx);
+          }
+          
+          const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
+          
+          // Check if this combination already exists
+          if (!teamCombinationExists(teamPlayerIds, allExistingTeams)) {
+            generatedTeams.push({
+              name: `Team ${teamIndex + 1}`,
+              tournament,
+              players: teamPlayerIds
+            });
+            teamFound = true;
+          } else {
+            // Combination exists, release the indices and try again
+            selectedIndices.forEach(idx => usedPlayerIndices.delete(idx));
+          }
+        }
+        
+        attempts++;
+      }
+      
+      if (!teamFound) {
+        // If we couldn't find a unique combination, create one anyway (but log warning)
+        const availableIndices = shuffledPlayers.map((_, idx) => idx);
+        const selectedIndices = [];
+        
+        for (let i = 0; i < playersPerTeam && selectedIndices.length < playersPerTeam; i++) {
+          let randomIdx;
+          do {
+            randomIdx = Math.floor(Math.random() * availableIndices.length);
+          } while (selectedIndices.includes(availableIndices[randomIdx]));
+          
+          selectedIndices.push(availableIndices[randomIdx]);
+        }
+        
+        const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
+        generatedTeams.push({
+          name: `Team ${teamIndex + 1}`,
+          tournament,
+          players: teamPlayerIds
+        });
+        
+        console.warn(`Warning: Could not find unique combination for Team ${teamIndex + 1}, using combination that may already exist`);
+      }
+    }
+
+    // Create all teams
+    const createdTeams = [];
+    for (const teamData of generatedTeams) {
+      const team = new Team(teamData);
+      await team.save();
+      
+      // Add team to tournament
+      await Tournament.findByIdAndUpdate(tournament, {
+        $push: { teams: team._id }
+      });
+      
+      const populatedTeam = await Team.findById(team._id)
+        .populate('players')
+        .populate('tournament');
+      
+      createdTeams.push(populatedTeam);
+    }
+
+    res.status(201).json({
+      message: `Successfully created ${createdTeams.length} team(s)`,
+      teams: createdTeams,
+      uniqueCombinations: generatedTeams.length
+    });
+  } catch (error) {
+    console.error('Error generating smart teams:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create team
 router.post('/', async (req, res) => {
   try {
