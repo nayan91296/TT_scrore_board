@@ -350,18 +350,40 @@ router.post('/generate-smart-teams', async (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    // Get all existing teams to check for duplicates
+    // Get all existing teams to check for duplicate combinations (across all tournaments)
     const allExistingTeams = await Team.find().populate('players');
     
-    // Get existing teams for this tournament
+    // Get existing teams for this tournament and extract already used players
     const tournamentTeams = await Team.find({ tournament }).populate('players');
+    const usedPlayerIdsInTournament = new Set();
+    tournamentTeams.forEach(team => {
+      if (team.players && Array.isArray(team.players)) {
+        team.players.forEach(player => {
+          const playerId = player._id ? player._id.toString() : player.toString();
+          usedPlayerIdsInTournament.add(playerId);
+        });
+      }
+    });
 
-    // Shuffle players for randomness
-    const shuffledPlayers = [...playerIds].sort(() => Math.random() - 0.5);
+    // Filter out players already used in this tournament
+    const availablePlayerIds = playerIds.filter(playerId => {
+      const id = playerId.toString ? playerId.toString() : String(playerId);
+      return !usedPlayerIdsInTournament.has(id);
+    });
+
+    // Check if we have enough available players
+    if (availablePlayerIds.length < totalPlayersNeeded) {
+      return res.status(400).json({ 
+        error: `Not enough available players. ${usedPlayerIdsInTournament.size} player(s) are already in teams for this tournament. Need ${totalPlayersNeeded} but only have ${availablePlayerIds.length} available.` 
+      });
+    }
+
+    // Shuffle available players for randomness
+    const shuffledPlayers = [...availablePlayerIds].sort(() => Math.random() - 0.5);
     
     // Try to generate unique team combinations
     const generatedTeams = [];
-    const usedPlayerIndices = new Set();
+    const usedPlayerIndices = new Set(); // Track players used in this generation
     const maxAttempts = 1000; // Maximum attempts to find unique combinations
     
     for (let teamIndex = 0; teamIndex < numberOfTeams; teamIndex++) {
@@ -369,87 +391,68 @@ router.post('/generate-smart-teams', async (req, res) => {
       let teamFound = false;
       
       while (attempts < maxAttempts && !teamFound) {
-        // Try to select players that haven't been used yet
+        // Get players that haven't been used in this generation yet
         const availableIndices = shuffledPlayers
           .map((_, idx) => idx)
           .filter(idx => !usedPlayerIndices.has(idx));
         
+        // Check if we have enough unused players
         if (availableIndices.length < playersPerTeam) {
-          // Not enough unused players, allow reuse but try to minimize it
-          const allIndices = shuffledPlayers.map((_, idx) => idx);
-          const selectedIndices = [];
-          
-          // First, try to use unused players
-          for (let i = 0; i < playersPerTeam && availableIndices.length > 0; i++) {
-            const randomIdx = Math.floor(Math.random() * availableIndices.length);
-            const selectedIdx = availableIndices.splice(randomIdx, 1)[0];
-            selectedIndices.push(selectedIdx);
-            usedPlayerIndices.add(selectedIdx);
-          }
-          
-          // Fill remaining slots with any players (reuse allowed)
-          while (selectedIndices.length < playersPerTeam) {
-            const randomIdx = Math.floor(Math.random() * allIndices.length);
-            const selectedIdx = allIndices[randomIdx];
-            if (!selectedIndices.includes(selectedIdx)) {
-              selectedIndices.push(selectedIdx);
-            }
-          }
-          
-          const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
-          
-          // Check if this combination already exists
-          if (!teamCombinationExists(teamPlayerIds, allExistingTeams)) {
-            generatedTeams.push({
-              name: `Team ${teamIndex + 1}`,
-              tournament,
-              players: teamPlayerIds
-            });
-            teamFound = true;
-          }
+          // This should not happen if we validated correctly, but handle it gracefully
+          return res.status(400).json({ 
+            error: `Not enough players remaining. Need ${playersPerTeam} more players but only have ${availableIndices.length} available.` 
+          });
+        }
+        
+        // Select players for this team
+        const selectedIndices = [];
+        const availableCopy = [...availableIndices];
+        
+        for (let i = 0; i < playersPerTeam; i++) {
+          const randomIdx = Math.floor(Math.random() * availableCopy.length);
+          const selectedIdx = availableCopy.splice(randomIdx, 1)[0];
+          selectedIndices.push(selectedIdx);
+          usedPlayerIndices.add(selectedIdx);
+        }
+        
+        const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
+        
+        // Check if this combination already exists in any tournament
+        if (!teamCombinationExists(teamPlayerIds, allExistingTeams)) {
+          generatedTeams.push({
+            name: `Team ${teamIndex + 1}`,
+            tournament,
+            players: teamPlayerIds
+          });
+          teamFound = true;
         } else {
-          // We have enough unused players
-          const selectedIndices = [];
-          const availableCopy = [...availableIndices];
-          
-          for (let i = 0; i < playersPerTeam; i++) {
-            const randomIdx = Math.floor(Math.random() * availableCopy.length);
-            const selectedIdx = availableCopy.splice(randomIdx, 1)[0];
-            selectedIndices.push(selectedIdx);
-            usedPlayerIndices.add(selectedIdx);
-          }
-          
-          const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
-          
-          // Check if this combination already exists
-          if (!teamCombinationExists(teamPlayerIds, allExistingTeams)) {
-            generatedTeams.push({
-              name: `Team ${teamIndex + 1}`,
-              tournament,
-              players: teamPlayerIds
-            });
-            teamFound = true;
-          } else {
-            // Combination exists, release the indices and try again
-            selectedIndices.forEach(idx => usedPlayerIndices.delete(idx));
-          }
+          // Combination exists, release the indices and try again
+          selectedIndices.forEach(idx => usedPlayerIndices.delete(idx));
         }
         
         attempts++;
       }
       
       if (!teamFound) {
-        // If we couldn't find a unique combination, create one anyway (but log warning)
-        const availableIndices = shuffledPlayers.map((_, idx) => idx);
-        const selectedIndices = [];
+        // If we couldn't find a unique combination after max attempts, use available players anyway
+        const availableIndices = shuffledPlayers
+          .map((_, idx) => idx)
+          .filter(idx => !usedPlayerIndices.has(idx));
         
-        for (let i = 0; i < playersPerTeam && selectedIndices.length < playersPerTeam; i++) {
-          let randomIdx;
-          do {
-            randomIdx = Math.floor(Math.random() * availableIndices.length);
-          } while (selectedIndices.includes(availableIndices[randomIdx]));
-          
-          selectedIndices.push(availableIndices[randomIdx]);
+        if (availableIndices.length < playersPerTeam) {
+          return res.status(400).json({ 
+            error: `Could not generate unique team ${teamIndex + 1}. Not enough available players or too many duplicate combinations exist.` 
+          });
+        }
+        
+        const selectedIndices = [];
+        const availableCopy = [...availableIndices];
+        
+        for (let i = 0; i < playersPerTeam; i++) {
+          const randomIdx = Math.floor(Math.random() * availableCopy.length);
+          const selectedIdx = availableCopy.splice(randomIdx, 1)[0];
+          selectedIndices.push(selectedIdx);
+          usedPlayerIndices.add(selectedIdx);
         }
         
         const teamPlayerIds = selectedIndices.map(idx => shuffledPlayers[idx]);
@@ -459,7 +462,7 @@ router.post('/generate-smart-teams', async (req, res) => {
           players: teamPlayerIds
         });
         
-        console.warn(`Warning: Could not find unique combination for Team ${teamIndex + 1}, using combination that may already exist`);
+        console.warn(`Warning: Could not find unique combination for Team ${teamIndex + 1} after ${maxAttempts} attempts, using available combination`);
       }
     }
 
