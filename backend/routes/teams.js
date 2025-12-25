@@ -350,8 +350,29 @@ router.post('/generate-smart-teams', async (req, res) => {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    // Get all existing teams to check for duplicate combinations (across all tournaments)
-    const allExistingTeams = await Team.find().populate('players');
+    // Get current month for filtering
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const monthStart = new Date(currentYear, currentMonth - 1, 1);
+    const monthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+    
+    // Get tournaments in the current month
+    const tournamentsInCurrentMonth = await Tournament.find({
+      $or: [
+        { startDate: { $lte: monthEnd }, endDate: { $gte: monthStart } }
+      ]
+    }).select('_id');
+    
+    const tournamentIdsInMonth = tournamentsInCurrentMonth.map(t => t._id);
+    
+    // Get teams from tournaments in the current month only (to check for duplicates)
+    const teamsInCurrentMonth = await Team.find({
+      tournament: { $in: tournamentIdsInMonth }
+    }).populate('players');
+    
+    // Get all existing teams to check for duplicate combinations (only from current month)
+    const allExistingTeams = teamsInCurrentMonth;
     
     // Get existing teams for this tournament and extract already used players
     const tournamentTeams = await Team.find({ tournament }).populate('players');
@@ -364,6 +385,8 @@ router.post('/generate-smart-teams', async (req, res) => {
         });
       }
     });
+    
+    console.log(`Checking teams from current month (${currentYear}-${String(currentMonth).padStart(2, '0')}). Found ${teamsInCurrentMonth.length} teams in current month tournaments.`);
 
     // Filter out players already used in this tournament
     const availablePlayerIds = playerIds.filter(playerId => {
@@ -509,6 +532,47 @@ router.post('/', async (req, res) => {
     // Validate players
     if (!players || players.length < 1) {
       return res.status(400).json({ error: 'Team must have at least one player' });
+    }
+
+    // Check for duplicate players within the team itself
+    const playerIds = players.map(p => {
+      const id = p._id || p;
+      return id.toString ? id.toString() : String(id);
+    });
+    const uniquePlayerIds = [...new Set(playerIds)];
+    if (playerIds.length !== uniquePlayerIds.length) {
+      return res.status(400).json({ error: 'A player cannot be added multiple times to the same team' });
+    }
+
+    // Check if any of these players are already in another team in this tournament
+    const existingTeams = await Team.find({ tournament }).populate('players');
+    const usedPlayerIds = new Set();
+    
+    existingTeams.forEach(team => {
+      if (team.players && Array.isArray(team.players)) {
+        team.players.forEach(player => {
+          const playerId = player._id ? player._id.toString() : player.toString();
+          usedPlayerIds.add(playerId);
+        });
+      }
+    });
+
+    // Check if any of the new team's players are already used
+    const duplicatePlayers = [];
+    playerIds.forEach(playerId => {
+      if (usedPlayerIds.has(playerId)) {
+        duplicatePlayers.push(playerId);
+      }
+    });
+
+    if (duplicatePlayers.length > 0) {
+      // Get player names for better error message
+      const Player = require('../models/Player');
+      const playerNames = await Player.find({ _id: { $in: duplicatePlayers } }).select('name');
+      const names = playerNames.map(p => p.name).join(', ');
+      return res.status(400).json({ 
+        error: `The following player(s) are already in another team in this tournament: ${names}. Each player can only be in one team per tournament.` 
+      });
     }
 
     const team = new Team(req.body);
