@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   getPlayers, createPlayer, updatePlayer, deletePlayer,
-  getTeams, getTournaments, createTeam, deleteTeam, getTeamPastRecord
+  getTeams, getTournaments, createTeam, deleteTeam, getTeamPastRecord, generateSmartTeams
 } from '../services/api';
 import PinVerification from './PinVerification';
 
@@ -486,34 +486,22 @@ const PlayersAndTeams = () => {
 
     setLoading(prev => ({ ...prev, generateRandom: true }));
     try {
-      const shuffledPlayers = [...availablePlayers].sort(() => Math.random() - 0.5);
-      
-      const teamsToCreate = [];
-      for (let i = 0; i < randomTeamForm.numberOfTeams; i++) {
-        const teamPlayers = shuffledPlayers.slice(
-          i * randomTeamForm.playersPerTeam,
-          (i + 1) * randomTeamForm.playersPerTeam
-        );
-        
-        teamsToCreate.push({
-          name: `Team ${i + 1}`,
-          tournament: randomTeamForm.tournament,
-          players: teamPlayers.map(p => p._id)
-        });
-      }
-
-      for (const teamData of teamsToCreate) {
-        await createTeam(teamData);
-      }
+      // Use smart team generation that checks past teams
+      const response = await generateSmartTeams({
+        tournament: randomTeamForm.tournament,
+        playerIds: availablePlayers.map(p => p._id),
+        numberOfTeams: randomTeamForm.numberOfTeams,
+        playersPerTeam: randomTeamForm.playersPerTeam
+      });
 
       setShowRandomModal(false);
       setRandomTeamForm({ tournament: '', numberOfTeams: 2, playersPerTeam: 2 });
       setSelectedPlayersForRandom([]);
       loadTeams();
-      alert(`Successfully created ${randomTeamForm.numberOfTeams} team(s) for the tournament!`);
+      alert(`Successfully created ${response.data.teams.length} unique team(s) for the tournament!`);
     } catch (error) {
-      console.error('Error generating random teams:', error);
-      alert(error.response?.data?.error || 'Failed to generate random teams');
+      console.error('Error generating smart teams:', error);
+      alert(error.response?.data?.error || 'Failed to generate teams');
     } finally {
       setLoading(prev => ({ ...prev, generateRandom: false }));
     }

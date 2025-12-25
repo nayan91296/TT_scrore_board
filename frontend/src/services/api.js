@@ -57,6 +57,7 @@ export const getTeamsByTournament = (tournamentId) => api.get(`/teams/tournament
 export const getTeam = (id) => api.get(`/teams/${id}`);
 export const getTeamPastRecord = (id) => api.get(`/teams/${id}/past-record`);
 export const createTeam = (data) => api.post('/teams', data);
+export const generateSmartTeams = (data) => api.post('/teams/generate-smart-teams', data);
 export const updateTeam = (id, data) => api.put(`/teams/${id}`, data);
 export const deleteTeam = (id) => api.delete(`/teams/${id}`);
 export const recalculateTeamStats = (tournamentId) => api.post(`/teams/tournament/${tournamentId}/recalculate`);
